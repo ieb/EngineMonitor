@@ -1,0 +1,277 @@
+#include <Arduino.h>
+
+//#define SERIAL_DEBUG_DISABLED
+
+#define USE_LIB_WEBSOCKET true
+
+#include "sensesp_app.h"
+#include "sensors/onewire_temperature.h"
+#include "sensors/bmp280.h"
+#include "sensors/analog_input.h"
+#include "sensors/digital_input.h"
+#include "signalk/signalk_output.h"
+#include "wiring_helpers.h"
+#include "transforms/change_filter.h"
+#include "transforms/linear.h"
+#include "transforms/analogvoltage.h"
+#include "transforms/voltagedividerR2.h"
+#include "transforms/curveinterpolator.h"
+#include "transforms/frequency.h"
+
+
+/*
+Based almost entirely on cut and paste from examples in the SenseESP project.
+ */
+
+/*
+  Illustrates a custom transform that takes a resistance value in ohms and returns the estimated
+  temperature in Kelvin. Sample data in this example were taken from a Westerbeke generator
+  temperature sender and gauge.
+  Note that you will never instantiate CurveInterpolator in your own SensESP
+  project - you will always need to create a descendant class of it, like
+  TemperatureInterpreter in this example. The constructor needs to do only two things:
+  call clearSamples(), then call addSample() at least twice. (This class can't function
+  without at least two samples.) You can call addSample() as many times as you like,
+  and the more samples you have, the more accurately this transform will emulate the
+  analog sensor. Note, however, that since all transforms inherit from class
+  Configurable, you can make its data configurable in the Config UI, and that means
+  not only that you can edit (at runtime) whatever samples you add in the constructor,
+  but also that you can add more samples at runtime.
+  
+  One of your samples should be at the lowest value for the input,and one should be at
+  the highest value, so the input to CurveInterpolator will always be between two values.
+   
+  This example is a bit complex because of the need for the VoltageDivider2 transform,
+  but that also makes it an excellent "advanced" example. 
+*/
+
+
+/**
+ *  Based on the Volvo Penta D2-40 workshop maual.
+ * 5V supply to sensor.
+ * 2-3V at 20C, will need an acurage measurement here to get the resistance to +5V
+ * Sensor resistances vs temp, from p26 of the manual, test procedure.
+*	C	R	K
+*	120	22	393
+*	110	29	383
+*	100	38	373
+*	90	51	363
+*	80	70	353
+*	70	97	343
+*	60	134	333
+*	50	197	323
+*	40	291	313
+*	30	439	303
+*	20	677	293
+*	10	1076	283
+*	0	1743	273
+
+ */
+class TemperatureInterpreter : public CurveInterpolator {
+
+    public:
+        TemperatureInterpreter(String config_path="") :
+           CurveInterpolator(NULL, config_path ) {
+
+          // Populate a lookup table tp translate the ohm values returned by
+          // our temperature sender to degrees Kelvin
+          clearSamples();
+          // addSample(CurveInterpolator::Sample(knownOhmValue, knownKelvin));
+          addSample(CurveInterpolator::Sample(22,	393));
+          addSample(CurveInterpolator::Sample(29,	383));
+          addSample(CurveInterpolator::Sample(38,	373));
+          addSample(CurveInterpolator::Sample(51,	363));
+          addSample(CurveInterpolator::Sample(70,	353));
+          addSample(CurveInterpolator::Sample(97,	343));
+          addSample(CurveInterpolator::Sample(134, 333));
+          addSample(CurveInterpolator::Sample(197, 323));
+          addSample(CurveInterpolator::Sample(291,	313));
+          addSample(CurveInterpolator::Sample(439,	303));
+          addSample(CurveInterpolator::Sample(677,	293));
+          addSample(CurveInterpolator::Sample(1076,	283));
+          addSample(CurveInterpolator::Sample(1743,	273));
+
+        }
+};
+
+ReactESP app([] () {
+  #ifndef SERIAL_DEBUG_DISABLED
+  Serial.begin(115200);
+
+  // A small delay and one debugI() are required so that
+  // the serial output displays everything
+  delay(100);
+  Debug.setSerialEnabled(true);
+  #endif
+  delay(100);
+  debugI("Serial debug enabled");
+
+  sensesp_app = new SensESPApp(noStdSensors);
+
+  /* Find all the sensors and their unique addresses. Then, each new instance
+     of OneWireTemperature will use one of those addresses. You can't specify
+     which address will initially be assigned to a particular sensor, so if you
+     have more than one sensor, you may have to swap the addresses around on
+     the configuration page for the device. (You get to the configuration page
+     by entering the IP address of the device into a browser.)
+     ESP8266 pins are specified as DX
+     ESP32 pins are specified as just the X in GPIOX
+  */
+  DallasTemperatureSensors* dts = new DallasTemperatureSensors(15);
+
+  // temp updates every 5s is fast enough.
+  // the sensors have low noise and move slowly.
+  uint engine_read_delay = 5000;
+
+  auto* pCoolantTemp = new OneWireTemperature(dts, engine_read_delay, "/coolantTemperature/oneWire");
+
+    pCoolantTemp->connectTo(new Linear(1.0, 0.0, "/coolantTemperature/linear"))
+                ->connectTo(new ChangeFilter(0.1,50,10,""))
+                ->connectTo(new SKOutputNumber("propulsion.mainEngine.coolantTemperature", "/coolantTemperature/skPath"));
+
+  auto* pExhaustTemp = new OneWireTemperature(dts, engine_read_delay, "/exhaustTemperature/oneWire");
+    
+    pExhaustTemp->connectTo(new Linear(1.0, 0.0, "/exhaustTemperature/linear"))
+                ->connectTo(new ChangeFilter(0.1,50,10,""))
+                ->connectTo(new SKOutputNumber("propulsion.mainEngine.exhaustTemperature", "/exhaustTemperature/skPath"));
+  
+  auto* p24VTemp = new OneWireTemperature(dts, engine_read_delay, "/24vAltTemperature/oneWire");
+      
+      p24VTemp->connectTo(new Linear(1.0, 0.0, "/24vAltTemperature/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,""))
+              ->connectTo(new SKOutputNumber("electrical.alternators.24V.temperature", "/24vAltTemperature/skPath"));
+
+  auto* p12VTemp = new OneWireTemperature(dts, engine_read_delay, "/12vAltTemperature/oneWire");
+      
+      p12VTemp->connectTo(new Linear(1.0, 0.0, "/12vAltTemperature/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,""))
+              ->connectTo(new SKOutputNumber("electrical.alternators.12V.temperature", "/12vAltTemperature/skPath"));      
+
+// Environment
+
+  // Create a BMP280, which represents the physical sensor.
+  // 0x77 is the default address. Some chips use 0x76, which is shown here.
+  auto* pBMP280 = new BMP280(0x76);
+
+  // If you want to change any of the settings that are set by Adafruit_BMP280::setSampling(), do
+  // that here, like this:
+  // pBMP280->pAdafruitBMP280->setSampling(); // pass in the parameters you want
+
+  // Define the read_delays you're going to use:
+  const uint env_read_delay = 5000; // once per second
+  const uint pressure_read_delay = 60000; // once per minute
+
+  // Create a BMP280value, which is used to read a specific value from the BMP280, and send its output
+  // to SignalK as a number (float). This one is for the temperature reading.
+  auto* pBMPtemperature = new BMP280value(pBMP280, temperature, env_read_delay, "/Outside/Temperature");
+      
+      pBMPtemperature->connectTo(new ChangeFilter(0.1,50,10,""))
+                     ->connectTo(new SKOutputNumber("environment.outside.temperature"));
+
+
+  // Do the same for the barometric pressure value. Its read_delay is longer, since barometric pressure can't
+  // change all that quickly. It could be much longer for that reason.
+  auto* pBMPpressure = new BMP280value(pBMP280, pressure,  pressure_read_delay, "/Outside/Pressure");
+      
+      pBMPpressure->connectTo(new ChangeFilter(1,10,999,""))
+                  ->connectTo(new SKOutputNumber("environment.outside.pressure"));
+
+
+// Engine Coolant 
+  /*
+  Circuit is 
+    5V |
+       R1
+       |______ Vt
+       |     |
+       |     R3
+       |     |___ ADC
+       R2    |
+       |     R4
+   GND |_____|
+
+   R1 = ~677R
+   R2 = temperature sensor 1734R@0C to 22R@120C
+   R3 = 2K2
+   R4 = 4K7
+   Max ADC = 3.1v when R2 is open circuit or 3.4v if R1 shorts to 5V.
+  R3 and R4 will introduce an error in the default engine sensor reading, but its < 1R at operating 
+  temperatures.
+    
+    Process for reading
+    Read ADC
+    Convert to Voltage convert the value from the AnalogIn pin into an AnalogVoltage()
+    Scale Voltage to Vt Linear()
+    Calculate R2 VoltageDividerR2()
+    Calibrate with curve TemperatureInterpreter()
+    Scale ito calibrate if required Linear()
+  */
+
+   // Voltage sent into the voltage divider circuit that includes the analog sender
+  const float Vin = 5.0; 
+  // The resistance, in ohms, of the fixed resistor (R1) in the voltage divider circuit
+  const float R1 = 677.0;  // TBD by measurement. 
+
+  // scale to convert ADC voltage to temp voltage.
+  const float r3R4scale = (4700.0+2200.0)/(4700); 
+
+  const uint coolant_read_delay = 5000; // once per second
+
+
+// 33 == Pin A on the input header
+  auto* pAnalogInput = new AnalogInput(33, coolant_read_delay);
+
+  pAnalogInput->connectTo(new AnalogVoltage()) -> 
+                connectTo(new Linear(r3R4scale, 0.0, "/coolant/temp/adcscale")) -> 
+                connectTo(new VoltageDividerR2(R1, Vin, "/coolant/temp/sender")) -> 
+                connectTo(new TemperatureInterpreter("/coolant/temp/curve")) -> 
+                connectTo(new Linear(1.0, 0.0, "/coolant/temp/calibrate")) -> 
+//                connectTo(new ChangeFilter(0.5,10,100,"")) ->
+                connectTo(new SKOutputNumber("electrical.generator.engine.water.temp", 
+                     "/coolant/temp/sk")); 
+
+
+/*
+  Engine RPM
+
+  Using the W+ terminal on the alternator. This is wired drectly to one of the alternator windings
+  which produces a sine wave at a multiple of the alternator RPM, which is itself a multiple
+  of the engine RPM.
+
+  Circuit
+
+  W+ alternator -|         ______________________
+                 R1        |                     \
+                 |_________| Schmit               \___ D2
+                 |   |     | Trigger 74HC14 1/6   /
+                 R2  C1    |_____________________/
+            GND  |___|
+
+   R1 = 10K
+   R2 = 2K2
+   C1 = 0.1uF
+   */
+
+
+  const float multiplier = 0.1037410505; // measured on D2-40 standard alternator
+  const uint read_delay = 2000; // need a rapid check to deal with acceleration
+
+// pin 1 hotwired to D4 
+// TODO fix PCB
+// 750 137
+// 1000 162
+// 1500 238
+// 2000 325
+// 2500 394
+// 15.76V to -.885
+
+  auto* pRPMSensor = new DigitalInputCounter(4, INPUT_PULLUP, RISING, read_delay);
+
+  pRPMSensor->connectTo(new Frequency(multiplier, "/sensors/engine_rpm/calibrate"))  // connect the output of pSensor to the input of Frequency()
+        //->connectTo(new ChangeFilter(0.2,10,100,"")) // 0.2 Hz is about 10RPM. 
+        ->connectTo(new SKOutputNumber("propulsion.main.revolutions", 
+            "/sensors/engine_rpm/sk"));   // connect the output of Frequency() to a SignalK Output as a number
+
+
+  sensesp_app->enable();
+});
