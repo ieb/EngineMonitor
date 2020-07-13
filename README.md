@@ -24,3 +24,46 @@ See signalk/SenseESP for details on how to develop.
 
 (ESPBoard.png)
 
+
+# Connections
+
+Colors are wire colors on installed board
+
+## 1 Wire
+
+* Alternator Temp (electrical.alternators.12V.temperature, /oneWire-1)
+* Charger Temp (propulsion.mainEngine.exhaustTemperature, /oneWire-2)
+* Exhaust Temperature (electrical.chargers.12V.temperature, /oneWire-3)
+* Fridge (electrical.fridge.main.temperature, /oneWire-4)
+
+Onewire sensors tend to not be rugged enough to attach directly to a engine block, see below
+for coolant temp
+
+3 way plug, daisy chain as required. (vcc= orange, gnd=blue, 1wire=orange/white)
+
+## i2c
+
+* BMP280 
+
+## Analogue
+
+* A Engine Temperature Sender (/analog-1, setup for sender, blue/white)
+* B Alternator output (/analog-2, setup for 10K/2.2K divider, orange/white)
+* C Engine Battery (/analog-3, setup for 10K/2.2K divider, brown/white)
+* D Service battery (/analog-4, setup for 10K/2.2K divider, brown)
+* E spare (green)
+* F Spare (green/white)
+
+3x 2 way plugs
+
+# Digital
+
+* Alternator W terminal (/digital-1, setup as frequency sensor, blue)
+* Spare (orange)
+
+1x 2 way plug
+
+
+# Power
+
+2 way -> 12->5V DC/DC -> board Vin

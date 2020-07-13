@@ -123,29 +123,29 @@ ReactESP app([] () {
   // the sensors have low noise and move slowly.
   uint engine_read_delay = 5000;
 
-  auto* pCoolantTemp = new OneWireTemperature(dts, engine_read_delay, "/coolantTemperature/oneWire");
+  auto* pOneWire1 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-1/sensor");
 
-    pCoolantTemp->connectTo(new Linear(1.0, 0.0, "/coolantTemperature/linear"))
-                ->connectTo(new ChangeFilter(0.1,50,10,""))
-                ->connectTo(new SKOutputNumber("propulsion.mainEngine.coolantTemperature", "/coolantTemperature/skPath"));
+    pOneWire1->connectTo(new Linear(1.0, 0.0, "/oneWire-1/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-1/filter"))
+                ->connectTo(new SKOutputNumber("electrical.alternators.12V.temperature", "/oneWire-1/sk"));
 
-  auto* pExhaustTemp = new OneWireTemperature(dts, engine_read_delay, "/exhaustTemperature/oneWire");
+  auto* pOneWire2 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-2/sensor");
     
-    pExhaustTemp->connectTo(new Linear(1.0, 0.0, "/exhaustTemperature/linear"))
-                ->connectTo(new ChangeFilter(0.1,50,10,""))
-                ->connectTo(new SKOutputNumber("propulsion.mainEngine.exhaustTemperature", "/exhaustTemperature/skPath"));
+    pOneWire2->connectTo(new Linear(1.0, 0.0, "/oneWire-2/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-2/filter"))
+                ->connectTo(new SKOutputNumber("propulsion.mainEngine.exhaustTemperature", "/oneWire-2/sk"));
   
-  auto* p24VTemp = new OneWireTemperature(dts, engine_read_delay, "/24vAltTemperature/oneWire");
+  auto* pOneWire3 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-3/sensor");
       
-      p24VTemp->connectTo(new Linear(1.0, 0.0, "/24vAltTemperature/linear"))
-              ->connectTo(new ChangeFilter(0.1,50,10,""))
-              ->connectTo(new SKOutputNumber("electrical.alternators.24V.temperature", "/24vAltTemperature/skPath"));
+      pOneWire3->connectTo(new Linear(1.0, 0.0, "/oneWire-3/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-3/filter"))
+              ->connectTo(new SKOutputNumber("electrical.chargers.12V.temperature", "/oneWire-3/sk"));
 
-  auto* p12VTemp = new OneWireTemperature(dts, engine_read_delay, "/12vAltTemperature/oneWire");
+  auto* pOneWire4 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-4/sensor");
       
-      p12VTemp->connectTo(new Linear(1.0, 0.0, "/12vAltTemperature/linear"))
-              ->connectTo(new ChangeFilter(0.1,50,10,""))
-              ->connectTo(new SKOutputNumber("electrical.alternators.12V.temperature", "/12vAltTemperature/skPath"));      
+      pOneWire4->connectTo(new Linear(1.0, 0.0, "/oneWire-4/linear"))
+              ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-4/filter"))
+              ->connectTo(new SKOutputNumber("electrical.fridge.main.temperature", "/oneWire-4/sk"));      
 
 // Environment
 
@@ -158,23 +158,23 @@ ReactESP app([] () {
   // pBMP280->pAdafruitBMP280->setSampling(); // pass in the parameters you want
 
   // Define the read_delays you're going to use:
-  const uint env_read_delay = 5000; // once per second
+  const uint env_read_delay = 5000; // once per 5second
   const uint pressure_read_delay = 60000; // once per minute
 
   // Create a BMP280value, which is used to read a specific value from the BMP280, and send its output
   // to SignalK as a number (float). This one is for the temperature reading.
-  auto* pBMPtemperature = new BMP280value(pBMP280, temperature, env_read_delay, "/Outside/Temperature");
+  auto* pBMPtemperature = new BMP280value(pBMP280, temperature, env_read_delay, "/bmp280Temperature/sensor");
       
-      pBMPtemperature->connectTo(new ChangeFilter(0.1,50,10,""))
-                     ->connectTo(new SKOutputNumber("environment.outside.temperature"));
+      pBMPtemperature->connectTo(new ChangeFilter(0.1,50,10,"/bmp280Temperature/filter"))
+                     ->connectTo(new SKOutputNumber("environment.outside.temperature","/bmp280Temperature/sk"));
 
 
   // Do the same for the barometric pressure value. Its read_delay is longer, since barometric pressure can't
   // change all that quickly. It could be much longer for that reason.
-  auto* pBMPpressure = new BMP280value(pBMP280, pressure,  pressure_read_delay, "/Outside/Pressure");
+  auto* pBMPpressure = new BMP280value(pBMP280, pressure,  pressure_read_delay, "/bmp280Pressure/sensor");
       
-      pBMPpressure->connectTo(new ChangeFilter(1,10,999,""))
-                  ->connectTo(new SKOutputNumber("environment.outside.pressure"));
+      pBMPpressure->connectTo(new ChangeFilter(1,10,999,"/bmp280Pressure/filter"))
+                  ->connectTo(new SKOutputNumber("environment.outside.pressure","/bmp280Pressure/sk"));
 
 
 // Engine Coolant 
@@ -219,16 +219,47 @@ ReactESP app([] () {
 
 
 // 33 == Pin A on the input header
-  auto* pAnalogInput = new AnalogInput(33, coolant_read_delay);
+  auto* pAnalogInputA = new AnalogInput(33, coolant_read_delay, "/analog-a/adc");
 
-  pAnalogInput->connectTo(new AnalogVoltage()) -> 
-                connectTo(new Linear(r3R4scale, 0.0, "/coolant/temp/adcscale")) -> 
-                connectTo(new VoltageDividerR2(R1, Vin, "/coolant/temp/sender")) -> 
-                connectTo(new TemperatureInterpreter("/coolant/temp/curve")) -> 
-                connectTo(new Linear(1.0, 0.0, "/coolant/temp/calibrate")) -> 
-//                connectTo(new ChangeFilter(0.5,10,100,"")) ->
-                connectTo(new SKOutputNumber("electrical.generator.engine.water.temp", 
-                     "/coolant/temp/sk")); 
+  pAnalogInputA->connectTo(new AnalogVoltage(3.299999952F, 
+              1.0F, 0.0, "/analog-a/calibrate")) ->
+                connectTo(new Linear(r3R4scale, 0.0, "/analog-a/adcscale")) -> 
+                connectTo(new VoltageDividerR2(R1, Vin, "/analog-a/sender")) -> 
+                connectTo(new TemperatureInterpreter("/analog-a/curve")) -> 
+                connectTo(new Linear(1.0, 0.0, "/analog-a/calibrate")) -> 
+                connectTo(new ChangeFilter(0.5,10,50,"/analog-a/filter")) ->
+                connectTo(new SKOutputNumber("propulsion.mainEngine.temperature", 
+                     "/analog-a/sk")); 
+
+/**
+ * Remainder are simple Bridges 10K + 2.2K    scale is 5.5454545
+ * 33,32,35,34,VN,VP
+ */
+  auto* pAnalogInputB = new AnalogInput(32, coolant_read_delay,  "/analog-b/adc");
+
+  pAnalogInputB->connectTo(new AnalogVoltage(3.299999952F, 
+              5.5454545, 0.0, "/analog-b/calibrate")) ->  
+                connectTo(new ChangeFilter(0.1,10,10,"/analog-b/filter")) ->
+                connectTo(new SKOutputNumber("propulsion.mainEngine.alternatorVoltage", 
+                     "/analog-b/sk")); 
+
+
+  auto* pAnalogInputC = new AnalogInput(35, coolant_read_delay,  "/analog-c/adc");
+
+  pAnalogInputC->connectTo(new AnalogVoltage(3.299999952F, 
+              5.5454545, 0.0, "/analog-c/calibrate")) -> 
+                connectTo(new ChangeFilter(0.1,10,10,"/analog-c/filter")) ->
+                connectTo(new SKOutputNumber("electrical.batteries.engine.voltage", 
+                     "/analog-c/sk")); 
+
+  auto* pAnalogInputD = new AnalogInput(34, coolant_read_delay,  "/analog-d/adc");
+
+  pAnalogInputD->connectTo(new AnalogVoltage(3.299999952F, 
+              5.5454545, 0.0, "/analog-d/calibrate")) ->  
+                connectTo(new ChangeFilter(0.1,10,10,"/analog-d/filter")) ->
+                connectTo(new SKOutputNumber("electrical.batteries.service.voltage", 
+                     "/analog-d/sk")); 
+
 
 
 /*
@@ -265,12 +296,12 @@ ReactESP app([] () {
 // 2500 394
 // 15.76V to -.885
 
-  auto* pRPMSensor = new DigitalInputCounter(4, INPUT_PULLUP, RISING, read_delay);
+  auto* pRPMSensor = new DigitalInputCounter(4, INPUT_PULLUP, RISING, read_delay, "/digital-1/pin4");
 
-  pRPMSensor->connectTo(new Frequency(multiplier, "/sensors/engine_rpm/calibrate"))  // connect the output of pSensor to the input of Frequency()
-        //->connectTo(new ChangeFilter(0.2,10,100,"")) // 0.2 Hz is about 10RPM. 
-        ->connectTo(new SKOutputNumber("propulsion.main.revolutions", 
-            "/sensors/engine_rpm/sk"));   // connect the output of Frequency() to a SignalK Output as a number
+  pRPMSensor->connectTo(new Frequency(multiplier, "/digital-1/calibrate"))  // connect the output of pSensor to the input of Frequency()
+        ->connectTo(new ChangeFilter(0.2,20,10,"/digital-1/filter")) // 0.2 Hz is about 10RPM. 
+        ->connectTo(new SKOutputNumber("propulsion.mainEngine.revolutions", 
+            "/digital-1/sk"));   // connect the output of Frequency() to a SignalK Output as a number
 
 
   sensesp_app->enable();
