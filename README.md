@@ -22,7 +22,7 @@ Other boards may vary but this seems to be a common pattern probably based on a 
 
 See signalk/SenseESP for details on how to develop.
 
-!(ESPBoard.png)
+![ESP-WROOM-32D Dev Board](ESPBoard.png)
 
 
 # Connections
