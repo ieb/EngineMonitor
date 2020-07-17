@@ -273,7 +273,7 @@ ReactESP app([] () {
 
   W+ alternator -|         ______________________
                  R1        |                     \
-                 |_________| Schmit               \___ D2
+                 |_________| Schmit               \___ D19/Pin 25
                  |   |     | Trigger 74HC14 1/6   /
                  R2  C1    |_____________________/
             GND  |___|
@@ -296,7 +296,7 @@ ReactESP app([] () {
 // 2500 394
 // 15.76V to -.885
 
-  auto* pRPMSensor = new DigitalInputCounter(4, INPUT_PULLUP, RISING, read_delay, "/digital-1/pin4");
+  auto* pRPMSensor = new DigitalInputCounter(19, INPUT_PULLUP, RISING, read_delay, "/digital-1/pin4");
 
   pRPMSensor->connectTo(new Frequency(multiplier, "/digital-1/calibrate"))  // connect the output of pSensor to the input of Frequency()
         ->connectTo(new ChangeFilter(0.2,20,10,"/digital-1/filter")) // 0.2 Hz is about 10RPM. 

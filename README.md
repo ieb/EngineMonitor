@@ -10,7 +10,8 @@ The PCB handles power and signal cleaning. Its intended for through hole hand co
 Board used is a ESP-WROOM-32D based board with Wifi and Bluetooth, although BT is not used. Available from eBay. https://www.ebay.co.uk/itm/143297558340 30 pin DIL.
 Datasheet of the chip https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32d_esp32-wroom-32u_datasheet_en.pdf
 
-The digital headers are numbered 1-6 mapping to GPIO PINS 25,26,27,11,12,13 board pins 8,9,10,11,12,13. However GPIO11,12,13 cant be used as they are connected to the JTAG and Flash. There might some other pins available, wired with Jump wires. TODO, fix the PCB. D4,5, RX2, TX2, D18,D19, D23 all look like replacements. D2 is attached to the blue LED which is used for Wifi.
+The digital headers are numbered 1-6 mapping to GPIO PINS D19, D18, D5, TX2, RX2, D4.
+D2 cant be used as its attached to the LED on the board.
 
 The analog headers are marked A-F mapping to GPIO PINS 33,32,35,34,VN,VP board pins 7,6,5,4,3,2
 
