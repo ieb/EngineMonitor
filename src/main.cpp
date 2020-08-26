@@ -127,13 +127,13 @@ ReactESP app([] () {
 
     pOneWire1->connectTo(new Linear(1.0, 0.0, "/oneWire-1/linear"))
               ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-1/filter"))
-                ->connectTo(new SKOutputNumber("electrical.alternators.12V.temperature", "/oneWire-1/sk"));
+                ->connectTo(new SKOutputNumber("propulsion.mainEngine.exhaustTemperature", "/oneWire-1/sk"));
 
   auto* pOneWire2 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-2/sensor");
     
     pOneWire2->connectTo(new Linear(1.0, 0.0, "/oneWire-2/linear"))
               ->connectTo(new ChangeFilter(0.1,50,10,"/oneWire-2/filter"))
-                ->connectTo(new SKOutputNumber("propulsion.mainEngine.exhaustTemperature", "/oneWire-2/sk"));
+                ->connectTo(new SKOutputNumber("electrical.alternators.12V.temperature", "/oneWire-2/sk"));
   
   auto* pOneWire3 = new OneWireTemperature(dts, engine_read_delay, "/oneWire-3/sensor");
       
@@ -177,6 +177,32 @@ ReactESP app([] () {
                   ->connectTo(new SKOutputNumber("environment.outside.pressure","/bmp280Pressure/sk"));
 
 
+/*
+ ESP32s are 0-4095 ADCs, the libraries assume 1023, hence 
+ the libraries use max_voltage to represent the voltage at 1023, 
+ hence max_voltage = 3.299999952*1023/4095 =  0.8243955924
+
+ 13.5/12.87 = 
+ 
+
+ 1.048951049*14.62/14.82651 = 1.0343408082
+
+ 1.0343408082*13.50/13.31316 = 1.0487569889
+ 13.60/13.43784
+ 13.50/13.42399
+
+2742, 12.91
+2705, 
+3122, 14.45
+2950, 13.70
+2917, 13.64
+2897, 13.56
+2890, 13.49
+
+
+
+
+ */
 // Engine Coolant 
   /*
   Circuit is 
@@ -210,10 +236,13 @@ ReactESP app([] () {
    // Voltage sent into the voltage divider circuit that includes the analog sender
   const float Vin = 5.0; 
   // The resistance, in ohms, of the fixed resistor (R1) in the voltage divider circuit
-  const float R1 = 677.0;  // TBD by measurement. 
+  const float R1 = 545.5;  
+  // TBD by measurement. 
+  // R2 at stop (about 20C) 654
+  // V across R2 2.726V
+  // R1 = (654*(5-2.726))/2.726V = 545.5
 
-  // scale to convert ADC voltage to temp voltage.
-  const float r3R4scale = (4700.0+2200.0)/(4700); 
+  // 
 
   const uint coolant_read_delay = 5000; // once per second
 
@@ -221,9 +250,11 @@ ReactESP app([] () {
 // 33 == Pin A on the input header
   auto* pAnalogInputA = new AnalogInput(33, coolant_read_delay, "/analog-a/adc");
 
-  pAnalogInputA->connectTo(new AnalogVoltage(3.299999952F, 
-              1.0F, 0.0, "/analog-a/calibrate")) ->
-                connectTo(new Linear(r3R4scale, 0.0, "/analog-a/adcscale")) -> 
+  pAnalogInputA->connectTo(new AnalogVoltage(0.8243955924F, 
+              1.4680851064F, // using simple 22K/47K divider
+              0.0F, // zero offset
+               "/analog-a/voltage")) ->
+              //  connectTo(new Linear(r3R4scale, 0.0, "/analog-a/adcscale")) -> 
                 connectTo(new VoltageDividerR2(R1, Vin, "/analog-a/sender")) -> 
                 connectTo(new TemperatureInterpreter("/analog-a/curve")) -> 
                 connectTo(new Linear(1.0, 0.0, "/analog-a/calibrate")) -> 
@@ -232,13 +263,17 @@ ReactESP app([] () {
                      "/analog-a/sk")); 
 
 /**
- * Remainder are simple Bridges 10K + 2.2K    scale is 5.5454545
+ * Based on measurement with a 10K and 2K2 resistor
+ * Voltage at 1023 0.8243955924
+ * Multiplier 4.8458898894
+ * Offset 2.2048799
+ 
  * 33,32,35,34,VN,VP
  */
   auto* pAnalogInputB = new AnalogInput(32, coolant_read_delay,  "/analog-b/adc");
 
-  pAnalogInputB->connectTo(new AnalogVoltage(3.299999952F, 
-              5.5454545, 0.0, "/analog-b/calibrate")) ->  
+  pAnalogInputB->connectTo(new AnalogVoltage(0.8243955924F, 
+              4.8458898894F, 2.2048799F, "/analog-b/calibrate")) ->  
                 connectTo(new ChangeFilter(0.1,10,10,"/analog-b/filter")) ->
                 connectTo(new SKOutputNumber("propulsion.mainEngine.alternatorVoltage", 
                      "/analog-b/sk")); 
@@ -246,16 +281,16 @@ ReactESP app([] () {
 
   auto* pAnalogInputC = new AnalogInput(35, coolant_read_delay,  "/analog-c/adc");
 
-  pAnalogInputC->connectTo(new AnalogVoltage(3.299999952F, 
-              5.5454545, 0.0, "/analog-c/calibrate")) -> 
+  pAnalogInputC->connectTo(new AnalogVoltage(0.8243955924F, 
+              4.8458898894F, 2.2048799F, "/analog-c/calibrate")) -> 
                 connectTo(new ChangeFilter(0.1,10,10,"/analog-c/filter")) ->
                 connectTo(new SKOutputNumber("electrical.batteries.engine.voltage", 
                      "/analog-c/sk")); 
 
   auto* pAnalogInputD = new AnalogInput(34, coolant_read_delay,  "/analog-d/adc");
 
-  pAnalogInputD->connectTo(new AnalogVoltage(3.299999952F, 
-              5.5454545, 0.0, "/analog-d/calibrate")) ->  
+  pAnalogInputD->connectTo(new AnalogVoltage(0.8243955924F, 
+              4.8458898894F, 2.2048799F, "/analog-d/calibrate")) ->  
                 connectTo(new ChangeFilter(0.1,10,10,"/analog-d/filter")) ->
                 connectTo(new SKOutputNumber("electrical.batteries.service.voltage", 
                      "/analog-d/sk")); 
