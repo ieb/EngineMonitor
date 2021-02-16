@@ -1,14 +1,29 @@
 # EngineMonitor
 
-An engine monitor based on signalk/SenseESP using a ESP-WROOM-32 board from ebay somple pcb. It senses 1wire temperature, i2c pressure and temperature (BMP280), and has 2 digial inputs and 4 analogue inputs for monitoring a typical marine diesel engine. In addition there is a JDY-40 serial RF interface for polling remote sensors.
-
-There are 2 modes of operation. One uses SignalK/SenserESP to send data over Wifi with configuration over Wifi. The other emits NMEA2000 messages to a NMEA200 bus, with configuration over Classic Bluetooth serial.
-
-Most of the hard work is done in signalk/SenseESP, this project simply customises that work for this sensor.
+An engine monitor using a ESP-WROOM-32 board from ebay. It senses 1wire temperature, i2c pressure and temperature (BMP280), and has 2 digial inputs and 4 analogue inputs (ADS1115) for monitoring a typical marine diesel engine. In addition there is a JDY-40 serial RF interface for polling remote sensors.
 
 
-The data is sensed and sent to a SignalK server which is discovered via mDSN over wifi. Wifi is
-configured with a captive html ui when the ESP32 starts. Sensor settings my be re-configured over http and wifi switches. Use mDSN to discover the IP the sensor uses.
+It emits NMEA2000 messages to a NMEA200 bus, with configuration over Classic Bluetooth serial, saved to flash.
+
+It supports PGN PGN127488 (rapid engine), PGN127489 (engine data), PGN130312 (various temperatures), PGN127508 (battery status), PGN127513 (battery configuration).
+
+Sensors include:
+
+* RPM from W+ terminal of alternator.
+* Coolant Temperature
+* Oil Pressure
+* Fuel Level
+* Alternator Voltage
+* Alternator Temperature
+* Exhaust Temperature
+* Engine Room Temperature
+
+Other values for the PGNs above are based on interpolation, best guess, fake, where possible. Target engine is a D2-40F, so the code is setup for that engines curves and prop. Most parameters can be changed over the Bluetooth serial CLI.
+
+Over RF (TBD), Devices based on Arduino Pro Mini, JDY-40, ADS1115 (Arduino ADC not flexible enough)
+
+* Engine Battery voltage, current, temperature, configuration
+* Service Battery voltage, current, temperature, configuration
 
 The PCB handles power and signal cleaning. It is single sided and can easilly be created using basic laser printer+CuCl etching at home, or using a CNC PCB Milling machine (FlatCAM+Candle).
 
