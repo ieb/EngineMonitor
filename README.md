@@ -25,9 +25,12 @@ Over RF (TBD), Devices based on Arduino Pro Mini, JDY-40, ADS1115 (Arduino ADC n
 * Engine Battery voltage, current, temperature, configuration
 * Service Battery voltage, current, temperature, configuration
 
-The PCB handles power and signal cleaning. It is single sided and can easilly be created using basic laser printer+CuCl etching at home, or using a CNC PCB Milling machine (FlatCAM+Candle).
+The PCB handles power and signal cleaning. 
+It is single sided and can easilly be created using basic laser printer+CuCl etching at home, or using a CNC PCB Milling machine (FlatCAM+Candle). 
 
-Board used is a ESP-WROOM-32D based board with Wifi and Bluetooth, although BT is not used. Available from eBay. https://www.ebay.co.uk/itm/143297558340 30 pin DIL.
+Power consumption is < 50mA@5V RF sensors consume < 25mA@3.3V
+
+Board used is a ESP-WROOM-32D based board with Wifi and Bluetooth, although Wifi is not used. Available from eBay. https://www.ebay.co.uk/itm/143297558340 30 pin DIL.
 Datasheet of the chip https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32d_esp32-wroom-32u_datasheet_en.pdf
 
 Most of the remainder of this readme is notes.
