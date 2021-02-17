@@ -53,9 +53,9 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .voltageReadPeriod = 10000,
     .temperatureReadPeriod = 30000,
     .oilPressureScale = 50,  // 0.5V = 0PSI, 4.5V = 200, scale=200/(4.5-0.5)
-    .oilPresureOffset = 0.5,
-    .fuelLevelScale = 0.18, // see method readFuleLevel
-    .fuelLevelOffset = 17.182130584,
+    .oilPressureOffset = 0.5,
+    .fuelLevelScale = 17.182130584, // see method readFuleLevel
+    .fuelLevelOffset =  0.18, 
     .engineFlywheelRPMPerHz = 6.224463028,
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
@@ -247,8 +247,8 @@ void EngineMonitor::readFlywheelRPM() {
   float edgeFrequencyHz = (nedges)/(0.001*period);
   flyWheelRPM = config->engineFlywheelRPMPerHz * edgeFrequencyHz;
 
-  load = -1e9; // not available.
-  torque = -1e9; // not available.
+  load = 0; // not available.
+  torque = 0; // not available.
 
   if ( !engineRunning && flyWheelRPM > 100) {
     engineRunning = true;
@@ -270,7 +270,7 @@ void EngineMonitor::readOil() {
    // read an oil pressure sensor, most are linear 0.5 = 0PSI 4.5 = 200PSI, 5V supply
   // oilPressure, needs sensor
   adc.setGain(GAIN_ONE);
-  oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC)))-config->oilPresureOffset);
+  oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC)))-config->oilPressureOffset);
 
 }
 

@@ -4,15 +4,58 @@
 
 #include <Arduino.h>
 
-#include <Adafruit_ADS1015.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 
 #ifdef UNIT_TEST
 #include <iostream> 
 #define unitout_ln(x) std::cout << x << std::endl
 #define unitout(x) std::cout << x 
+#define GPIO_NUM_27 27
+#define GPIO_NUM_26 26
+#define GAIN_FOUR 4
+#define GAIN_ONE 1
+#define GAIN_TWO 2
+
+class OneWire {
+  
+};
+
+class DeviceAddress {
+
+};
+
+class Adafruit_ADS1115 {
+  public:
+  void begin() {
+
+  }
+  void setGain(int gain) {
+
+  }
+  int16_t readADC_SingleEnded(int c) {
+    return 10;
+  }
+};
+
+class DallasTemperature {
+  public:
+  void begin() {
+
+  }
+  void setOneWire(OneWire * onewire) {
+
+  }
+  bool getAddress(DeviceAddress address, int i) {
+    return true;
+  }
+  float getTempC(DeviceAddress address) {
+    return 20;
+  }
+};
+
 #else
+#include <Adafruit_ADS1015.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #define unitout_ln(x)
 #define unitout(x) 
 #endif
@@ -30,7 +73,7 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     int16_t voltageReadPeriod;
     int16_t temperatureReadPeriod;
     float oilPressureScale;
-    float oilPresureOffset;
+    float oilPressureOffset;
     float fuelLevelScale;
     float fuelLevelOffset;
     float engineFlywheelRPMPerHz;

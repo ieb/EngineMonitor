@@ -42,17 +42,17 @@ class EngineConfig {
         void setEngineTempThermistor(const char * data);
         void setEngineRpmScale(const char * data);
         void set1WireConfig(const char * data);
-        void setReadPeriodCOnfig(const char * data);
+        void setReadPeriodConfig(const char * data);
         void setOilPressureConfig(const char * data);
         void setFuelLevelCconfig(const char * data);
         int loadFloatTable(const char * data, int size, float * table);
-        int loadLongTable(const char * data, int size, long * table);
+        int loadLongTable(const char * data, int size, int16_t * table);
         int match(const char * command, const char ** commands, int ncommands, const char ** startData);
         void enableOutput(bool enable);
         Stream* io;
         EngineMonitor* engineMonitor;
         bool outputOn = false;
-        int bufferPos;
+        int bufferPos = 0;
         char inputLine[READBUFFER_LEN];
 
 };

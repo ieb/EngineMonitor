@@ -6,7 +6,7 @@
 #define ESP32_CAN_RX_PIN GPIO_NUM_18
 
 #define ONEWIRE_PIN GPIO_NUM_21
-#define DATAEN_PIN GPIO_NUM_4
+#define DATAEN_PIN GPIO_NUM_4 
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
 

@@ -43,13 +43,13 @@ static const char * engineconfig_commands[] = {
     "engine temp therm ",
     "rpm scale ",
     "owc ",
-    "one wire ",
+    "1 wire ",
     "rpc ",
     "read period ",
     "opc ",
-    "oil pressure config ",
+    "oil pressure ",
     "flc ",
-    "fuel level config "
+    "fuel level "
 };
 
 
@@ -83,10 +83,10 @@ void EngineConfig::help() {
     io->println("etc|engine temp config <r1>,<v>      - set engine coolant top resistor and voltage , floatx2, default 545.5,5");
     io->println("ett|engine temp therm <n>,...<n>     - set engine coolant thermistor resistance values 0C-120C, floatx13, default as per manual");
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
-    io->println("owc|one wire <a>,..           - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
-    io->println("rpc|read period  <r>,..        - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
-    io->println("opc|oil pressure  <o>, <s>    - set oil pressure offset and scale, floatx2, defult 0.5,50");
-    io->println("flc|fuel level  <o>, <s>      - set fuel level offset and scale, floatx2, defult 0.18,17.182130584");
+    io->println("owc|1 wire <a>,..                  - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
+    io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
+    io->println("opc|oil pressure  <o>, <s>           - set oil pressure offset and scale, floatx2, defult 0.5,50");
+    io->println("flc|fuel level  <o>, <s>             - set fuel level offset and scale, floatx2, defult 0.18,17.182130584");
 
 
 
@@ -95,6 +95,8 @@ void EngineConfig::help() {
 void EngineConfig::docmd(const char * command) {
     const char *data;
     int cid = match(command, engineconfig_commands, NCOMMANDS, &data );
+    unitout("Matched "); unitout_ln(cid); 
+
     switch(cid) {
         case CMD_ACTIVATE: 
             activate(); 
@@ -134,7 +136,7 @@ void EngineConfig::docmd(const char * command) {
             break;
         case CMD_RPC_S:
         case CMD_RPC_L:
-            setReadPeriodCOnfig(data);
+            setReadPeriodConfig(data);
             break;
         case CMD_OPC_S:
         case CMD_OPC_L:
@@ -216,7 +218,7 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"Oil pressure scale %f", config->oilPressureScale);
     io->println(buffer);
-    sprintf(buffer,"Oil pressure offset %f", config->oilPresureOffset);
+    sprintf(buffer,"Oil pressure offset %f", config->oilPressureOffset);
     io->println(buffer);
     sprintf(buffer,"Fuel level scale %f", config->fuelLevelScale);
     io->println(buffer);
@@ -264,12 +266,11 @@ void EngineConfig::setEngineTempThermistor(const char * data) {
 
 void EngineConfig::setEngineRpmScale(const char * data) {  
     config->engineFlywheelRPMPerHz = atof(data);
-    io->print("Engine RPM per Hz now ");
-    io->println(config->engineFlywheelRPMPerHz);
+    io->println("Set Engine RPM Scale");
 }
 
 void EngineConfig::set1WireConfig(const char * data){ 
-    long fields[3];
+    int16_t fields[3];
     int nfields = loadLongTable(data, 3, &fields[0]);
     if ( nfields == 3) {
         config->alternatorTemperatureIDX = (int8_t)fields[0];
@@ -280,14 +281,14 @@ void EngineConfig::set1WireConfig(const char * data){
         io->println("Incorrect number of values supplied.");
     }
 }
-void EngineConfig::setReadPeriodCOnfig(const char * data){ 
-    long fields[4];
+void EngineConfig::setReadPeriodConfig(const char * data){ 
+    int16_t fields[4];
     int nfields = loadLongTable(data, 4, &fields[0]);
     if ( nfields == 4) {
-        config->flywheelRPMReadPeriod = (int8_t)fields[0];
-        config->engineTemperatureReadPeriod = (int8_t)fields[1];
-        config->voltageReadPeriod = (int8_t)fields[2];
-        config->temperatureReadPeriod = (int8_t)fields[3];
+        config->flywheelRPMReadPeriod = fields[0];
+        config->engineTemperatureReadPeriod = fields[1];
+        config->voltageReadPeriod = fields[2];
+        config->temperatureReadPeriod = fields[3];
         io->println("Updated Period Config.");
     } else {
         io->println("Incorrect number of values supplied.");
@@ -297,8 +298,8 @@ void EngineConfig::setOilPressureConfig(const char * data){
     float fields[2];
     int nfields = loadFloatTable(data, 2, &fields[0]);
     if ( nfields == 2) {
-        config->oilPressureScale = fields[0];
-        config->oilPresureOffset = fields[1];
+        config->oilPressureOffset = fields[0];
+        config->oilPressureScale = fields[1];
         io->println("Updated Oil Pressure Config.");
     } else {
         io->println("Incorrect number of values supplied.");
@@ -308,8 +309,8 @@ void EngineConfig::setFuelLevelCconfig(const char * data){
     float fields[2];
     int nfields = loadFloatTable(data, 2, &fields[0]);
     if ( nfields == 2) {
-        config->fuelLevelScale = fields[0];
-        config->fuelLevelOffset = fields[1];
+        config->fuelLevelOffset = fields[0];
+        config->fuelLevelScale = fields[1];
         io->println("Updated Fuel Level Config.");
     } else {
         io->println("Incorrect number of values supplied.");
@@ -328,39 +329,42 @@ int EngineConfig::loadFloatTable(const char * data, int size, float * table) {
     while(n < size && pstart != NULL && *(pstart) != '\0' ) {
         pend = NULL;
         float d = strtof(pstart, &(pend));
-        if ( *pend == ',') {
+        while ( *pend == ',' || *pend == ' ') {
             pend++;
+            if ( *pend == '\0' ) {
+                break;
+            }
         }
         if ( pend != NULL ) {
-           io->printf("%d, %f\n",n,d);
            table[n] = d;
-            n++;
+           n++;
         }
         pstart = pend; 
     }
-    io->printf("Loaded %d\n",n);
     return n;
 }
 
-int EngineConfig::loadLongTable(const char * data, int size, long * table) {
+int EngineConfig::loadLongTable(const char * data, int size, int16_t * table) {
     char * pstart = (char *)data;
     char * pend = NULL;
     int n = 0;
 
     while(n < size && pstart != NULL && *(pstart) != '\0' ) {
         pend = NULL;
-        float d = strtol(pstart, &(pend), 10);
-        if ( *pend == ',') {
+        int16_t d = strtol(pstart, &(pend), 10);
+        while ( *pend == ',' || *pend == ' ') {
             pend++;
+            if ( *pend == '\0' ) {
+                break;
+            }
         }
         if ( pend != NULL ) {
-           io->printf("%d, %f\n",n,d);
+            
            table[n] = d;
             n++;
         }
         pstart = pend; 
     }
-    io->printf("Loaded %d\n",n);
     return n;
 }
 
@@ -394,12 +398,13 @@ char * EngineConfig::readLine() {
           inputLine[bufferPos-1] = '\0';
       }
       bufferPos = 0;
-      unitout("Got line"); unitout_ln(inputLine);
+      unitout("Got line "); unitout_ln(inputLine);
       return inputLine;
     } else if ( bufferPos < READBUFFER_LEN-1 ) {
       inputLine[bufferPos] = b;
       bufferPos++;
     } else {
+      unitout("Too Long:"); unitout_ln(bufferPos);
       io->println("Error, input too long");
       bufferPos = 0;
       return NULL;
