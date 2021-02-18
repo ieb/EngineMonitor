@@ -62,6 +62,10 @@ class DallasTemperature {
 
 #define MAX_ENGINE_TEMP 13
 #define MAX_ONE_WIRE_SENSORS 4
+#define STORAGE_NAMESPACE  "EngineConfig"
+#define STORAGE_KEY "cf11" // config version 10, keynames need to be:
+#define ENGINE_HOURS_KEY "eh"
+
 
 struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     int8_t alternatorTemperatureIDX; // index fo the alternator 1Wire sensor
@@ -114,6 +118,8 @@ class EngineMonitor {
       void readFuel();
       void readFuelTank();
       void readFlywheelRPM();
+      float saveEngineHours();
+      void loadEngineHours();
       int maxActiveDevice = 0;
       unsigned long lastEdges = 0;
       unsigned long lastFlywheelRPMReadTime = 0;

@@ -29,7 +29,13 @@ BluetoothSerial SerialBT;
 #endif
 
 
-const unsigned long TransmitMessages[] PROGMEM={130306L,0};
+const unsigned long TransmitMessages[] PROGMEM={
+  130312L, // temperature
+  127488L, // Rapid engine
+  127489L, // Dynamic engine
+  127508L, // Battery status
+  127513L, // Battery configuration
+  0};
 
 
 OneWire oneWire(ONEWIRE_PIN);
@@ -60,10 +66,10 @@ void setup() {
                                  "1.1.0.0 (2021-02-10)" // Manufacturer's Model version
                                  );
   // Set device information
-  NMEA2000.SetDeviceInformation(1, // Unique number. Use e.g. Serial number.
-                                130, // Device function=Atmospheric. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
-                                85, // Device class=External Environment. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
-                                2046 // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
+  NMEA2000.SetDeviceInformation(2, // Unique number. Use e.g. Serial number.
+                                160, // Device function=Engine Gateway. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                50, // Device class=Propulsion. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                2085 // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
                                );
 
   // debugging with no chips connected.
@@ -182,7 +188,6 @@ void SendVoltages() {
     VoltageUpdated=millis();
   }
 }
-
 
 
 

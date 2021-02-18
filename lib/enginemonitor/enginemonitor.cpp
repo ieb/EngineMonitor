@@ -1,5 +1,6 @@
 
 #include "enginemonitor.h"
+#include "configstorage.h"
 
 
 #define EDGE_PIN_0 GPIO_NUM_27
@@ -78,6 +79,8 @@ EngineMonitor::EngineMonitor(OneWire * _onewire, Stream * _debug) {
 }
 
 void EngineMonitor::begin() {
+  loadEngineHours();
+  engineRunning = false;
   if ( !interuptsActive) {
     pinMode(EDGE_PIN_0, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(EDGE_PIN_0), edgeCountHandler0, RISING);
@@ -190,7 +193,6 @@ C   K   R2
 void EngineMonitor::readCoolant() {
   // coolantPressure, needs sensor
   // engineCoolantTemperature
-  unsigned long readTime = millis();
   adc.setGain(GAIN_FOUR);
   float adc1 = ADC_V_GAIN_FOUR*adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC); // using ADC0 for 
   float vt = adc1*(COOLANT_TEMPERATURE_R3+COOLANT_TEMPERATURE_R4)/COOLANT_TEMPERATURE_R4;
@@ -251,10 +253,11 @@ void EngineMonitor::readFlywheelRPM() {
   torque = 0; // not available.
 
   if ( !engineRunning && flyWheelRPM > 100) {
-    engineRunning = true;
+    loadEngineHours();
     engineStarted = millis();
+    engineRunning = true;
   } else if ( engineRunning && flyWheelRPM < 150 ) {
-    setStoredEngineHours(getEngineHours());
+    engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
 }
@@ -319,6 +322,7 @@ void EngineMonitor::readSensors() {
     readCoolant();
     readOil();
     readFuel();
+    saveEngineHours();
     lastEngineTemperatureReadTime = readTime;
   }
 
@@ -360,10 +364,36 @@ float EngineMonitor::getFuelPressure() {
 float EngineMonitor::getCoolantPressure() {
   return coolantPressure; 
 }
-void EngineMonitor::setStoredEngineHours(float storedEngineHours) {
-  engineHoursPrevious = storedEngineHours;
-}
 
+
+
+void EngineMonitor::loadEngineHours() {
+    if (!engineRunning ) {
+      // only load engine hours if the engine is not running
+      // otherwise keep
+      debugStream->println("Loading Engine Hours");
+      float engineHoursLoad = 0;
+      int32_t err = config::readStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursLoad, sizeof(float));
+      if ( err == config::ok ) {
+        engineHoursPrevious = engineHoursLoad;
+      } else {
+        debugStream->print("Load Engine Hours Failed, err:");
+        debugStream->println(err);
+      }
+    }
+}
+float EngineMonitor::saveEngineHours() {
+  // get the engine hours and reset the engine
+  float engineHoursSave = getEngineHours();
+  // save engine hours.
+  debugStream->println("Saving Engine Hours");
+  int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
+  if ( err != config::ok ) {
+    debugStream->print("Save Engine Hours Failed, err:");
+    debugStream->println(err);
+  }
+  return engineHoursSave;
+}
 float EngineMonitor::getEngineHours() {
   if ( engineRunning ) {
     return engineHoursPrevious+((millis()-engineStarted)/3600000);

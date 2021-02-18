@@ -2,8 +2,6 @@
 #include <configstorage.h>
 #include <cstdlib>
 
-#define STORAGE_NAMESPACE  "EngineConfig"
-#define  STORAGE_KEY "cf11" // config version 10, keynames need to be:
 
 #define CMD_HELP 0
 #define CMD_DUMP 1
