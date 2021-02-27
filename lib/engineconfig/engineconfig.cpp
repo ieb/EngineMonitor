@@ -7,24 +7,27 @@
 #define CMD_DUMP 1
 #define CMD_SAVE 2
 #define CMD_LOAD 3
-#define CMD_ACTIVATE 4
-#define CMD_ENABLE_OUTPUT 5
-#define CMD_DISABLE_OUTPUT 6
-#define CMD_ETC_S 7
-#define CMD_ETC_L 8
-#define CMD_ETT_S 9
-#define CMD_ETT_L 10
+#define CMD_RESET 4
+#define CMD_ACTIVATE 5
+#define CMD_ENABLE_OUTPUT 6
+#define CMD_DISABLE_OUTPUT 7
+#define CMD_ENABLE_MON 8
+#define CMD_DISABLE_MON 9
+#define CMD_ETC_S 10
+#define CMD_ETC_L 11
+#define CMD_ETT_S 12
+#define CMD_ETT_L 13
 
-#define CMD_RPM_S 11
-#define CMD_OWC_S 12
-#define CMD_OWC_L 13
-#define CMD_RPC_S 14
-#define CMD_RPC_L 15
-#define CMD_OPC_S 16
-#define CMD_OPC_L 17
-#define CMD_FLC_S 18
-#define CMD_FLC_L 19
-#define NCOMMANDS 20
+#define CMD_RPM_S 14
+#define CMD_OWC_S 15
+#define CMD_OWC_L 16
+#define CMD_RPC_S 17
+#define CMD_RPC_L 18
+#define CMD_OPC_S 19
+#define CMD_OPC_L 20
+#define CMD_FLC_S 21
+#define CMD_FLC_L 22
+#define NCOMMANDS 23
 
 
 static const char * engineconfig_commands[] = {
@@ -32,9 +35,12 @@ static const char * engineconfig_commands[] = {
     "dump",
     "save",
     "load",
+    "reset",
     "activate",
     "on",
     "off",
+    "mon",
+    "moff",
     "etc ",
     "engine temp config ",
     "ett ",
@@ -59,7 +65,7 @@ EngineConfig::EngineConfig(EngineMonitor * _engineMonitor, Stream * _io) {
 
 
 void EngineConfig::begin() {
-    memcpy(config, &defaultEngineMonitorConfig, sizeof(EngineMonitorConfig));
+    reset();
     load();
 }
 
@@ -73,9 +79,12 @@ void EngineConfig::help() {
     io->println("dump                                 - Dumps the current configuration");
     io->println("save                                 - Saves the current configuration to non volatile storage.");
     io->println("load                                 - Loads configuration from no volatile storage");
+    io->println("reset                                - Factory reset");
     io->println("actviate                             - Activates Current configuration");
     io->println("on                                   - Enables diagnostic output");
     io->println("off                                  - Disables diagnostic output");
+    io->println("mon                                  - Enables sensor monitoring");
+    io->println("moff                                 - Disables sensor monitoring");
 
 
     io->println("etc|engine temp config <r1>,<v>      - set engine coolant top resistor and voltage , floatx2, default 545.5,5");
@@ -99,6 +108,9 @@ void EngineConfig::docmd(const char * command) {
         case CMD_ACTIVATE: 
             activate(); 
             break;
+        case CMD_RESET: 
+            reset(); 
+            break;
         case CMD_LOAD: 
             load(); 
             break;
@@ -116,6 +128,12 @@ void EngineConfig::docmd(const char * command) {
             break;
         case CMD_DISABLE_OUTPUT: 
             enableOutput(false); 
+            break;
+        case CMD_ENABLE_MON:
+            enableMonitoring(true);
+            break;
+        case CMD_DISABLE_MON:
+            enableMonitoring(false);
             break;
         case CMD_ETC_S:
         case CMD_ETC_L:
@@ -167,6 +185,10 @@ void EngineConfig::activate() {
 }
 
 
+void EngineConfig::reset() {
+    memcpy(config, &defaultEngineMonitorConfig, sizeof(EngineMonitorConfig));
+}
+
 void EngineConfig::load() {
     // load from flash
     io->println("Do load");
@@ -185,6 +207,14 @@ void EngineConfig::enableOutput(bool enable) {
 
 bool EngineConfig::isOutputEnabled() {
     return outputOn;
+}
+
+void EngineConfig::enableMonitoring(bool enable) {
+    monitoringOn = enable;
+}
+
+bool EngineConfig::isMonitoringEnabled() {
+    return monitoringOn;
 }
 
 

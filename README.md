@@ -20,10 +20,36 @@ Sensors include:
 
 Other values for the PGNs above are based on interpolation, best guess, fake, where possible. Target engine is a D2-40F, so the code is setup for that engines curves and prop. Most parameters can be changed over the Bluetooth serial CLI.
 
-Over RF (TBD), Devices based on Arduino Pro Mini, JDY-40, ADS1115 (Arduino ADC not flexible enough)
+## RF
+
+Over RF (TBD), Devices based on Arduino Pro Mini, JDY-40, ADS1115 (Arduino ADC not flexible enough). JDY-40s provide a serial 128 RF bands. In each band devices with the same RFID (WirelessID 2bytes) and DVID (Device ID 2bytes). Both the transmitter and reciever channel, RFID and DeviceID must match for packets to be transfered. These are set by AT commands to switch the trancever into that mode. The device will ignore packets that dont match and wont recieve packets that are on a different channel.
+
+JDY-40s were chosen becuase they have a simple serial interface and are relativey low power. BT Classic would have been an alternative but requires pairing and wont work in a mesh and doesnt have the range (top of mast for some sensors). BLE, is just too complex to be bothered with. ZigBee modules are too expensive. NRF24L01+ could have been used, however the interface is SPI. If the JDY-40 cant operate in a mesh then they may need to be replaced with NRF24L01+. For the moment JDY-40 seems the simplest approach, however there is no deal on the JDY-40 RF protocol whereas the NRF24L01+ is detailed https://www.sparkfun.com/datasheets/Components/SMD/nRF24L01Pluss_Preliminary_Product_Specification_v1_0.pdf and has a TCP like RF protocol, and allows upto 6 transmitters to send to a single reciever over parallel data pipes. 
+
+
+### Communication pattern.
+
+The sensors involved need to provide data periodically, eg every 10s rather than stream continuously at 5Hz. So the simplest mechanism is to use the RFID ID/DeviceID setting in the JDY40. Each node is allocated a ID. On start it waits for a query. The base cycles through each ID requesting data and waiting for a set period for a response before moving to the next device. No blocking operations with communications going via the main loop.
+
+
+
+### Protocol
+
+Single line terminated by a NL. Fields comma seperated with the last field being a hex encoded crc16. 
+    
+      deviceid,datatype,field1,field2,...,fieldn,checksumNL
+
+      device id is the id of the device, 0-255, hex
+      datatype defines the fields, 0-255, hex
+      field1..n the fields, text formatted.
+      checksum a hex crc16 of the whole line excluding , before the checksum.
+      NL a new line character.
 
 * Engine Battery voltage, current, temperature, configuration
 * Service Battery voltage, current, temperature, configuration
+
+
+## PCB
 
 The PCB handles power and signal cleaning. 
 It is single sided and can easilly be created using basic laser printer+CuCl etching at home, or using a CNC PCB Milling machine (FlatCAM+Candle). 

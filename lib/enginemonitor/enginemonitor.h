@@ -52,16 +52,23 @@ class DallasTemperature {
   }
 };
 
+class Jdy40 {
+
+};
+
 #else
 #include <Adafruit_ADS1015.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <jdy40.h>
+
 #define unitout_ln(x)
 #define unitout(x) 
 #endif
 
 #define MAX_ENGINE_TEMP 13
 #define MAX_ONE_WIRE_SENSORS 4
+#define MAX_RF_DEVICES 10
 #define STORAGE_NAMESPACE  "EngineConfig"
 #define STORAGE_KEY "cf11" // config version 10, keynames need to be:
 #define ENGINE_HOURS_KEY "eh"
@@ -84,6 +91,7 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     float coolantTempR1; // value of R1 in engine temp coolant bridge
     float coolantTempVin; // Open circuit voltage
     float coolantTempR2[MAX_ENGINE_TEMP]; // 0 - 120C in 10C steps values for the resistnace of the temperature sensor
+    uint16_t rfDevices[MAX_RF_DEVICES];
 };
 
 extern EngineMonitorConfig defaultEngineMonitorConfig;
@@ -148,6 +156,53 @@ class EngineMonitor {
       Stream * debugStream;
 };
 
+
+struct BatteryDevice {
+  float voltage;
+  float current;
+  float temperature;
+};
+struct EnvironmentDevice {
+  float temperature;
+  float pressure;
+  float humidity;
+};
+struct RFSensorDevice {
+  uint16_t type;
+  union {
+    BatteryDevice battery;
+    EnvironmentDevice environment;
+  };
+};
+
+#define SWITCHING_DEVICEID 0
+#define SWITCHING_RFID 1
+#define QUERY_DEVICE 2
+#define READING_DEVICE 4
+
+#define DATATYPE_BATTERY_MONITOR 1
+#define DATATYPE_ENVIRONMENT_MONITOR 2
+
+class RFSensorMonitor {
+  public:
+    RFSensorMonitor(Jdy40 *_rf, Stream * _debug = &Serial);
+    void calibrate(EngineMonitorConfig * config);
+    void readSensors();
+    void begin();
+  private:
+    int csvParse(char * inputLine, uint16_t len, char * elements[]);
+    bool queryDevice();
+    bool readResponse();
+    void saveResponse(uint16_t rfid, uint16_t datatype, char * fields[], int nfields );
+    unsigned long nextEvent = 0;
+    unsigned long defaultPeriod = 5000;
+    int state = SWITCHING_DEVICEID;
+    int currentDevice = 0;
+    Jdy40 * rf;
+    RFSensorDevice devices[MAX_RF_DEVICES];
+    EngineMonitorConfig *config;
+    Stream * debugStream;
+};
 
 
 #endif

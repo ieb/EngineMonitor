@@ -26,16 +26,18 @@ class EngineConfig {
     public:
         EngineConfig(EngineMonitor * engineMonitor, Stream * _io = &Serial);
         void begin(void);
+        void dump();
         void process();
         bool isOutputEnabled();
+        bool isMonitoringEnabled();
         ConfigBlob configBlob;
         EngineMonitorConfig * config;
     private:
         char * readLine();
         void docmd(const char * command);
-        void dump();
         void save();
         void load();
+        void reset();
         void activate();
         void help();
         void setEngineTempBridge(const char * data);
@@ -49,9 +51,11 @@ class EngineConfig {
         int loadLongTable(const char * data, int size, int16_t * table);
         int match(const char * command, const char ** commands, int ncommands, const char ** startData);
         void enableOutput(bool enable);
+        void enableMonitoring(bool enable);
         Stream* io;
         EngineMonitor* engineMonitor;
         bool outputOn = false;
+        bool monitoringOn = false;
         int bufferPos = 0;
         char inputLine[READBUFFER_LEN];
 

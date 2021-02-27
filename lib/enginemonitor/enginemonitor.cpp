@@ -61,7 +61,8 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
     //               0,    10,   20   30   40   50   60   70  80  90 100  110  120
-    .coolantTempR2 = {1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 }
+    .coolantTempR2 = {1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 },
+    .rfDevices = {0,0,0,0,0,0,0,0,0,0}
 };
 
 /**
@@ -313,12 +314,16 @@ void EngineMonitor::readFuelTank() {
 void EngineMonitor::readSensors() {
   // rpm
   unsigned long readTime = millis();
-  if ( lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod > readTime ) {
+  if ( readTime > lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod ) {
+    debugStream->printf("Reading RPM  %ld  %lu\n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
+
     readFlywheelRPM();
   }
 
   // coolant temperature
-  if ( lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod > readTime ) {
+  if ( readTime >  lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod ) {
+    debugStream->printf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
+
     readCoolant();
     readOil();
     readFuel();
@@ -326,7 +331,8 @@ void EngineMonitor::readSensors() {
     lastEngineTemperatureReadTime = readTime;
   }
 
-  if ( lastVoltageReadTime+config->voltageReadPeriod > readTime ) {
+  if ( readTime > lastVoltageReadTime+config->voltageReadPeriod  ) {
+    debugStream->printf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
 
     adc.setGain(GAIN_ONE);
     alternatorVoltage = VOLTAGE_SCALE * (ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC));
@@ -334,7 +340,8 @@ void EngineMonitor::readSensors() {
 
 
   }
-  if ( lastTemperatureReadTime+config->temperatureReadPeriod > readTime ) {
+  if ( readTime > lastTemperatureReadTime+config->temperatureReadPeriod  ) {
+    debugStream->printf("Reading External temps  %ld  %lu\n",lastTemperatureReadTime+config->temperatureReadPeriod, readTime );
     // slow changing values.
     readFuelTank();
     // 1 wire sensors
@@ -383,16 +390,19 @@ void EngineMonitor::loadEngineHours() {
     }
 }
 float EngineMonitor::saveEngineHours() {
-  // get the engine hours and reset the engine
+    // get the engine hours and reset the engine
   float engineHoursSave = getEngineHours();
   // save engine hours.
-  debugStream->println("Saving Engine Hours");
-  int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
-  if ( err != config::ok ) {
-    debugStream->print("Save Engine Hours Failed, err:");
-    debugStream->println(err);
+  if ( engineRunning ) {
+    debugStream->println("Saving Engine Hours");
+    int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
+    if ( err != config::ok ) {
+      debugStream->print("Save Engine Hours Failed, err:");
+      debugStream->println(err);
+    }
   }
   return engineHoursSave;
+
 }
 float EngineMonitor::getEngineHours() {
   if ( engineRunning ) {
@@ -431,9 +441,129 @@ float EngineMonitor::getEngineRoomTemperature() {
 }
 
 
+
+
+
+
 void EngineMonitor::calibrate(EngineMonitorConfig * _config) {
   config = _config;
 }
 
 
+
+RFSensorMonitor::RFSensorMonitor(Jdy40 *_rf, Stream * _debug) {
+  rf = _rf;
+  debugStream = _debug;
+}
+
+void RFSensorMonitor::calibrate(EngineMonitorConfig * _config) {
+  config = _config;
+}
+
+void RFSensorMonitor::begin() {
+
+}
+
+void RFSensorMonitor::readSensors() {
+  unsigned long now = millis();
+  if ( nextEvent < now ) {
+    nextEvent = now + defaultPeriod;
+    switch(state) {
+      case SWITCHING_DEVICEID:
+        if (rf->setDeviceID(config->rfDevices[currentDevice])) {
+          state = SWITCHING_RFID;
+        }
+        nextEvent = now + 1000; // wait 1s before reading or retrying
+        break;
+      case SWITCHING_RFID:
+        if (rf->setRFID(config->rfDevices[currentDevice])) {
+          state = QUERY_DEVICE;
+        }
+        nextEvent = now + 1000; // wait 1s before reading or retrying
+        break;
+      case QUERY_DEVICE:
+        if (queryDevice()) {
+          state = READING_DEVICE;
+        }
+        nextEvent = now + 1000; // wait 1s before reading or retrying
+        break;
+      case READING_DEVICE:
+        if (readResponse()) {
+          state = SWITCHING_DEVICEID;
+          currentDevice++;
+          if ( config->rfDevices[currentDevice] == 0 || currentDevice == MAX_RF_DEVICES ) {
+            currentDevice = 0;
+          }
+          nextEvent = now + 10000; // wait 10s to poll the next device
+        }
+        nextEvent = now + 1000; // wait 1s before retrying
+        break;
+    }
+  }
+}
+
+
+bool RFSensorMonitor::queryDevice() {
+  rf->writeLine("send\n");
+  return true;
+}
+
+
+int RFSensorMonitor::csvParse(char * inputLine, uint16_t len, char * elements[]) {
+  elements[0] = inputLine;
+  int n = 1;
+  for ( int i = 0; i < len-1 && n < 11; i++ ) {
+    if ( inputLine[i] == ',') {
+      inputLine[i] ='\0';
+      elements[n] = &(inputLine[i+1]);
+      n++;
+    }
+  }
+  return n;
+}
+
+bool RFSensorMonitor::readResponse() {
+  // line is an interna pointer so must be fully processed before it gets overwritten.
+  char * line = rf->readLine();
+  if ( line != NULL) {
+    char * fields[10];
+    // format of line is rfid,datatype,fields
+    int nfields = csvParse(line, 10, fields);
+    uint16_t rfid = strtoul(fields[0],NULL, 16);
+    uint16_t datatype = strtoul(fields[0],NULL, 16);
+    if ( rfid == config->rfDevices[currentDevice]) {
+      // expected device, store the output
+      saveResponse(rfid, datatype, fields,nfields);
+      return true;
+    } else {
+      // not expected, re-send query
+      queryDevice();
+      // come back later to read.
+    }
+  } else {
+    // no line yet, this is ok, come back later.
+  }
+  return false;
+  
+}
+
+void RFSensorMonitor::saveResponse(uint16_t rfid, uint16_t datatype, char * fields[], int nfields ) {
+    // format of line is rfid,datatype,nfields,fields
+    // rfid has been checked and is expected.
+    switch(datatype) {
+      case DATATYPE_BATTERY_MONITOR:
+        // rfid,datatype,fields,
+        devices[currentDevice].type = DATATYPE_BATTERY_MONITOR;
+        devices[currentDevice].battery.voltage = strtof(fields[2], NULL);
+        devices[currentDevice].battery.current = strtof(fields[3], NULL);
+        devices[currentDevice].battery.temperature = strtof(fields[4], NULL);
+      break;
+      case DATATYPE_ENVIRONMENT_MONITOR:
+        devices[currentDevice].type = DATATYPE_ENVIRONMENT_MONITOR;
+        devices[currentDevice].environment.temperature = strtof(fields[2], NULL);
+        devices[currentDevice].environment.pressure = strtof(fields[3], NULL);
+        devices[currentDevice].environment.humidity = strtof(fields[4], NULL);
+        break;
+    }
+}
 

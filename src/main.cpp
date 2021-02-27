@@ -19,7 +19,7 @@
 #include <enginemonitor.h>
 #include <engineconfig.h>
 
-#define BLUETOOTHCLASSIC 1
+// #define BLUETOOTHCLASSIC 1
 #ifdef BLUETOOTHCLASSIC
 #include <BlueToothSerial.h>
 BluetoothSerial SerialBT;
@@ -55,7 +55,11 @@ void setup() {
   Serial.begin(115200);
 #endif
 
+  Serial.println("Starting sensors");
+  engineConfig.begin();
+  engineConfig.dump();
   engineMonitor.begin();  
+  Serial.println("Starting NMEA2000");
 
   // Setup NMEA2000
   // Set Product information
@@ -86,7 +90,7 @@ void setup() {
 
   
 
-  SerialIO.println("Starting");
+  SerialIO.println("running");
   
 }
 
@@ -103,6 +107,9 @@ void SendRapidEnginData() {
 
   if ( RapidEngineUpdated+RapidEngineUpdatePeriod<millis() ) {
     double rpm = engineMonitor.getFlyWheelRPM();
+    if ( engineConfig.isMonitoringEnabled() ) {
+      SerialIO.printf("RPM %f\n",rpm);
+    }
     if (rpm > 0) {
       // PGN127488
       SetN2kEngineParamRapid(N2kMsg, 1, rpm);
@@ -130,7 +137,14 @@ void SendEnginData() {
     int8_t torque = engineMonitor.getTorque();
     int8_t status1 = engineMonitor.getStatus1(); /* tN2kEngineDiscreteStatus1 */
     int8_t status2 = engineMonitor.getStatus2(); /* tN2kEngineDiscreteStatus2 */
-    
+
+    if ( engineConfig.isMonitoringEnabled() ) {
+      SerialIO.printf("Engine Params1 t=%f, av=%f, op=%f, ot=%f, fr=%f, eh=%f, cp=%f, fp=%f\n",
+        temperature, alternatorVoltage, oilPressure, oilTemperature, fuelRate, engineHours, coolantPressure, fuelPressure);
+      SerialIO.printf("Engine Params2 l=%d, t=%d, s1=%d, s2=%d\n",
+        load, torque, status1, status2);
+    }
+
     /*
 
 inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstance, double EngineOilPress, double EngineOilTemp, double EngineCoolantTemp, double AltenatorVoltage,
@@ -142,7 +156,7 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
                        fuelRate, engineHours, coolantPressure, fuelPressure, load, torque, status1, status2);
 
     NMEA2000.SendMsg(N2kMsg);
-
+    EngineUpdated=millis();
 
   }
 }
@@ -153,6 +167,11 @@ void SendTemperatureData() {
 
   if ( TemperatureUpdated+TemperatureUpdatePeriod<millis() ) {
     // PGN130312
+    if ( engineConfig.isMonitoringEnabled() ) {
+      SerialIO.printf("Temperature er=%f, eg=%f, at=%f\n",
+        engineMonitor.getEngineRoomTemperature(), engineMonitor.getExhaustTemperature(), engineMonitor.getAlternatorTemperature());
+    }
+
     SetN2kTemperature(N2kMsg, 1, 1, N2kts_EngineRoomTemperature, engineMonitor.getEngineRoomTemperature());
     NMEA2000.SendMsg(N2kMsg);
     SetN2kTemperature(N2kMsg, 2, 2, N2kts_ExhaustGasTemperature, engineMonitor.getExhaustTemperature());
@@ -171,6 +190,10 @@ void SendVoltages() {
   if ( VoltageUpdated+VoltageUpdatePeriod<millis() ) {
 
     // Battery Status PGN127508
+    if ( engineConfig.isMonitoringEnabled() ) {
+      SerialIO.printf("Voltages eb=%f, sb=%f, av=%f\n",
+        12.6,12.6, engineMonitor.getAlternatorVoltage());
+    }
     
     SetN2kDCBatStatus(N2kMsg,1, 12.6, N2kDoubleNA, N2kDoubleNA, 1);
     NMEA2000.SendMsg(N2kMsg);
@@ -202,6 +225,7 @@ void loop() {
     NMEA2000.SetForwardStream(0);
   }
   // Send to N2K Bus
+  SendRapidEnginData();
   SendEnginData();
   SendTemperatureData();
   SendVoltages();
