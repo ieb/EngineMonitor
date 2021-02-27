@@ -1,6 +1,7 @@
 
 #include "enginemonitor.h"
 #include "configstorage.h"
+#include "esp_attr.h"
 
 
 #define EDGE_PIN_0 GPIO_NUM_27
@@ -21,15 +22,15 @@
 #define COOLANT_TEMPERATURE_R3 10000
 #define COOLANT_TEMPERATURE_R4 2200
 
-volatile unsigned long edgeCount0 = 0;
-volatile unsigned long edgeCount1 = 0;
+volatile DRAM_ATTR unsigned long edgeCount0 = 0;
+volatile DRAM_ATTR unsigned long edgeCount1 = 0;
 bool interuptsActive = false;
 
-void edgeCountHandler0() {
+void IRAM_ATTR edgeCountHandler0() {
   edgeCount0++;
 }
 
-void edgeCountHandler1() {
+void IRAM_ATTR edgeCountHandler1() {
   edgeCount1++;
 }
 
@@ -261,6 +262,8 @@ void EngineMonitor::readFlywheelRPM() {
     engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
+  debugStream->printf("RPM  nedges=%lu  period=%lu f=%f rpm=%f \n",nedges, period, edgeFrequencyHz, flyWheelRPM);
+
 }
 
 /**
@@ -315,7 +318,7 @@ void EngineMonitor::readSensors() {
   // rpm
   unsigned long readTime = millis();
   if ( readTime > lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod ) {
-    debugStream->printf("Reading RPM  %ld  %lu\n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
+    debugStream->printf("Reading RPM  %ld  %lu \n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
 
     readFlywheelRPM();
   }
@@ -378,10 +381,10 @@ void EngineMonitor::loadEngineHours() {
     if (!engineRunning ) {
       // only load engine hours if the engine is not running
       // otherwise keep
-      debugStream->println("Loading Engine Hours");
       float engineHoursLoad = 0;
       int32_t err = config::readStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursLoad, sizeof(float));
       if ( err == config::ok ) {
+        debugStream->printf("Loaded Engine Hours %f \n",engineHoursLoad);
         engineHoursPrevious = engineHoursLoad;
       } else {
         debugStream->print("Load Engine Hours Failed, err:");
@@ -394,7 +397,7 @@ float EngineMonitor::saveEngineHours() {
   float engineHoursSave = getEngineHours();
   // save engine hours.
   if ( engineRunning ) {
-    debugStream->println("Saving Engine Hours");
+    debugStream->printf("Saving Engine Hours %f\n", engineHoursSave);
     int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
     if ( err != config::ok ) {
       debugStream->print("Save Engine Hours Failed, err:");
