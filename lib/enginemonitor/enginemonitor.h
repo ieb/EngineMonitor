@@ -108,6 +108,7 @@ class EngineMonitor {
       uint16_t getStatus1(); /* tN2kEngineDiscreteStatus1 */
       uint16_t getStatus2(); /* tN2kEngineDiscreteStatus2 */
       float getFuelPressure();
+      float getFuelTankLevel();
       float getCoolantPressure();
       void setStoredEngineHours(float storedEngineHours);
       float getEngineHours();
@@ -147,6 +148,7 @@ class EngineMonitor {
       float fuelPressure = -1e9; // N2K NA
       float coolantPressure = -1e9; // N2K NA
       float fuelRate = -1e9; // N2K NA
+      float fuelTankLevel = -1e9; // N2K NA
       float oilPressure = -1e9; // N2K NA
       float temperature[MAX_ONE_WIRE_SENSORS];
       DeviceAddress tempDevices[MAX_ONE_WIRE_SENSORS];

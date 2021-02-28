@@ -135,17 +135,17 @@ void EngineMonitor::begin() {
    20C is 0.47V, 80C is 0.098V with 10K and 2K2 bridge.
 
    120C = 0.03V
-   80C = 0.98V
+   80C = 0.098V
    20C = 0.47V
    0C = 0.657V
 
    the ADS1115 is 16 bit for the full scale however single ended only half the scale is available.
    Gains available are, however 000 and 001 are limited to 3.6V by the supply voltage.
-   000 : FSR = ±6.144 V(1)
-   001 : FSR = ±4.096 V(1)
-   010 : FSR = ±2.048 V (default)
-   011 : FSR = ±1.024 V
-   100 : FSR = ±0.512 V
+   000 : FSR = ±6.144 V(1)  
+   001 : FSR = ±4.096 V(1)        GAIN_ONE
+   010 : FSR = ±2.048 V (default) GAIN_TWO
+   011 : FSR = ±1.024 V  GAIN_FOUR
+   100 : FSR = ±0.512 V  GAIN_EIGHT
    101 : FSR = ±0.256 V
    110 : FSR = ±0.256 V
    111 : FSR = ±0.256 V
@@ -195,8 +195,9 @@ C   K   R2
 void EngineMonitor::readCoolant() {
   // coolantPressure, needs sensor
   // engineCoolantTemperature
-  adc.setGain(GAIN_FOUR);
-  float adc1 = ADC_V_GAIN_FOUR*adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC); // using ADC0 for 
+  adc.setGain(GAIN_TWO);
+  uint16_t vi = adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC);
+  float adc1 = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
   float vt = adc1*(COOLANT_TEMPERATURE_R3+COOLANT_TEMPERATURE_R4)/COOLANT_TEMPERATURE_R4;
   float rn = vt*config->coolantTempR1/(config->coolantTempVin-vt);
   float r2 = 1.0/((1/rn)-(1/(COOLANT_TEMPERATURE_R3+COOLANT_TEMPERATURE_R4)));
@@ -211,6 +212,7 @@ void EngineMonitor::readCoolant() {
         engineCoolantTemperature = (10.0*(i-1))+
            10.0*((config->coolantTempR2[i-1]-r2)/
                  (config->coolantTempR2[i-1]-config->coolantTempR2[i]));
+        debugStream->printf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
         return;
       }
     }
@@ -219,6 +221,8 @@ void EngineMonitor::readCoolant() {
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
   }
+    debugStream->printf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
+
 }
 
 
@@ -277,7 +281,9 @@ void EngineMonitor::readOil() {
    // read an oil pressure sensor, most are linear 0.5 = 0PSI 4.5 = 200PSI, 5V supply
   // oilPressure, needs sensor
   adc.setGain(GAIN_ONE);
-  oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC)))-config->oilPressureOffset);
+  float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC);
+  oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (v))-config->oilPressureOffset);
+  debugStream->printf("Oil Pressure v=%f op=%f \n",v, oilPressure);
 
 }
 
@@ -310,7 +316,9 @@ void EngineMonitor::readFuelTank() {
     // fuelTankLevel, reads from a sensor, typically 3-190R, 3 being full 190 being empty, linear
   // would need R bridge, this doesnt need to be read actively
   adc.setGain(GAIN_TWO);
-  oilPressure = config->fuelLevelScale*((VOLTAGE_SCALE * (ADC_V_GAIN_TWO * adc.readADC_SingleEnded(FUEL_LEVEL_ADC)))-config->fuelLevelOffset);
+  float v = ADC_V_GAIN_TWO * adc.readADC_SingleEnded(FUEL_LEVEL_ADC);
+  fuelTankLevel = config->fuelLevelScale*((VOLTAGE_SCALE * (v))-config->fuelLevelOffset);
+  debugStream->printf("Fuel Tank v=%f fl=%f \n",v, fuelTankLevel);
 }
 
 
@@ -325,7 +333,11 @@ void EngineMonitor::readSensors() {
 
   // coolant temperature
   if ( readTime >  lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod ) {
+
+
     debugStream->printf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
+    debugStream->printf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
+    debugStream->printf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
 
     readCoolant();
     readOil();
@@ -338,7 +350,9 @@ void EngineMonitor::readSensors() {
     debugStream->printf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
 
     adc.setGain(GAIN_ONE);
-    alternatorVoltage = VOLTAGE_SCALE * (ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC));
+    float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC);
+    alternatorVoltage = VOLTAGE_SCALE * (v);
+    debugStream->printf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
     lastVoltageReadTime = readTime;
 
 
@@ -350,6 +364,7 @@ void EngineMonitor::readSensors() {
     // 1 wire sensors
     for (int i = 0; i < maxActiveDevice; i++) {
       temperature[i] = tempSensors.getTempC(tempDevices[i]);
+      debugStream->printf("Temperature i=%d t=%f \n",i,temperature[i]);
     }
     lastTemperatureReadTime = readTime;
   }
@@ -373,6 +388,10 @@ float EngineMonitor::getFuelPressure() {
 }
 float EngineMonitor::getCoolantPressure() {
   return coolantPressure; 
+}
+
+float EngineMonitor::getFuelTankLevel() {
+  return fuelTankLevel;
 }
 
 

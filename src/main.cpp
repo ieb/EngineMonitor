@@ -6,6 +6,8 @@
 #define ESP32_CAN_RX_PIN GPIO_NUM_18
 
 #define ONEWIRE_PIN GPIO_NUM_21
+#define SCL_PIN GPIO_NUM_22
+#define SDA_PIN GPIO_NUM_23
 #define DATAEN_PIN GPIO_NUM_4 
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
@@ -55,6 +57,7 @@ void setup() {
   Serial.begin(115200);
 #endif
 
+  Wire.begin(SDA_PIN, SCL_PIN);
   Serial.println("Starting sensors");
   engineConfig.begin();
   engineConfig.dump();
