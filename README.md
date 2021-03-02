@@ -17,6 +17,7 @@ Sensors include:
 * Alternator Temperature
 * Exhaust Temperature
 * Engine Room Temperature
+* Environment Temperature and Pressure
 
 Other values for the PGNs above are based on interpolation, best guess, fake, where possible. Target engine is a D2-40F, so the code is setup for that engines curves and prop. Most parameters can be changed over the Bluetooth serial CLI.
 
@@ -128,17 +129,7 @@ for coolant temp
    ADC2 = Oil Pressure
    ADC3 = Fuel Level
 
-## Analogue
 
-
-* Alternator W terminal (/digital-1, setup as frequency sensor, blue)
-
-1x 2 way plug
-
-
-# Power
-
-2 way -> 12->5V DC/DC -> board Vin
 
 # Related information
 
@@ -161,3 +152,9 @@ Note, there is no ECU on D1,D2 engines as the base engine is a fully mechanical 
 Larger Volvo Penta engines with a full ECU will have many more sensors. A great explanation of J1939 can be found at https://www.csselectronics.com/screen/page/simple-intro-j1939-explained/language/en which is presented on a CAN physical transport.  J1939 is the heavy truck protocol, 250K baud, 29bit PGN. At L7 OSI stack it is J1979 (ISO 15031-5), and at L2 it is CAN (ISO 15765-4). Some commodity ELM327 scanners may be able to read and decode the packets with the correct plugs (eg viecar + CarScanner app).
 
 J1939 is not NMEA2000, as the message structure is different and hence to connect a D2-40 MDI CAN Bus to a NMEA2000 CAN Bus requires a converter. Given how limited the set of sensors is, and how simple the MDI is it may not be worth it for MDI based engines. Volvo Penta Gateways retail at about 300 GBP, the Digital 
+
+
+
+# Bench testing
+
+Obviously it is not ideal to bench test with a real engine so its mocked up using a signal generator and a scope. The W+ terminal on the alternator is produced with a 2V sine wave into a 2N2222 switch powered by 14v so that the output is roughly a 14V sine wave.   The temperature sensor is a resistor bridge with the thermistor replaced by a 20 turn pot. 5V supply through a zener powered by 12v trough a 470R. The other voltages are generated with 20 turn 10K pots.

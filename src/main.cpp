@@ -1,5 +1,8 @@
 #include <Arduino.h>
 
+#include <Adafruit_BMP280.h>
+
+
 //#define SERIAL_DEBUG_DISABLED
 
 #define ESP32_CAN_TX_PIN GPIO_NUM_19
@@ -33,6 +36,7 @@ BluetoothSerial SerialBT;
 
 const unsigned long TransmitMessages[] PROGMEM={
   130312L, // temperature
+  130311L, // environment
   127488L, // Rapid engine
   127489L, // Dynamic engine
   127508L, // Battery status
@@ -43,6 +47,8 @@ const unsigned long TransmitMessages[] PROGMEM={
 OneWire oneWire(ONEWIRE_PIN);
 EngineMonitor engineMonitor(&oneWire,  &SerialIO);
 EngineConfig engineConfig(&engineMonitor, &SerialIO);
+Adafruit_BMP280 bmp; // I2C
+bool hasBMP280 = true;
 
 #define INPUT_BUFFER_SIZE 1024
 char inputBuffer[INPUT_BUFFER_SIZE];
@@ -62,6 +68,27 @@ void setup() {
   engineConfig.begin();
   engineConfig.dump();
   engineMonitor.begin();  
+
+
+  hasBMP280 = true;
+  if (!bmp.begin(0x76)) {
+    if (!bmp.begin(0x77)) {
+      Serial.println(F("Could not find a valid BMP280 sensor, check wiring. true 0x76 and 0x77"));
+      hasBMP280 = false;
+    }
+  }
+  if ( hasBMP280 ) {
+    /* Default settings from datasheet. */
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                    Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                    Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                    Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+  }
+
+
+
   Serial.println("Starting NMEA2000");
 
   // Setup NMEA2000
@@ -103,6 +130,7 @@ void setup() {
 #define EngineUpdatePeriod 3000
 #define TemperatureUpdatePeriod 30000
 #define VoltageUpdatePeriod 5000
+#define EnvironmentUpdatePeriod 60000
 
 void SendRapidEnginData() {
   static unsigned long RapidEngineUpdated=millis();
@@ -179,7 +207,7 @@ void SendTemperatureData() {
     NMEA2000.SendMsg(N2kMsg);
     SetN2kTemperature(N2kMsg, 2, 2, N2kts_ExhaustGasTemperature, engineMonitor.getExhaustTemperature());
     NMEA2000.SendMsg(N2kMsg);
-    SetN2kTemperature(N2kMsg, 2, 2, N2kts_LiveWellTemperature, engineMonitor.getAlternatorTemperature());
+    SetN2kTemperature(N2kMsg, 3, 3, N2kts_LiveWellTemperature, engineMonitor.getAlternatorTemperature());
     NMEA2000.SendMsg(N2kMsg);
     TemperatureUpdated=millis();
   }
@@ -215,6 +243,38 @@ void SendVoltages() {
   }
 }
 
+void SendEnvironment() {
+  static unsigned long EnvironmentUpdated=millis();
+  if ( hasBMP280 ) {
+
+    tN2kMsg N2kMsg;
+
+    if ( EnvironmentUpdated+EnvironmentUpdatePeriod<millis() ) {
+
+      double temperature = bmp.readTemperature();
+      double pressure =  bmp.readPressure();
+
+      Serial.print(F("Temperature = "));
+      Serial.print(temperature);
+      Serial.println(" *C");
+
+      Serial.print(F("Pressure = "));
+      Serial.print(pressure);
+      Serial.println(" Pa");
+
+      // PGN130311
+      SetN2kEnvironmentalParameters(N2kMsg,4,
+        tN2kTempSource::N2kts_InsideTemperature,
+        CToKelvin(temperature),N2khs_Undef,N2kDoubleNA,pressure);
+      NMEA2000.SendMsg(N2kMsg);
+
+      EnvironmentUpdated=millis();
+      
+    }
+  }
+
+}
+
 
 
 
@@ -232,5 +292,6 @@ void loop() {
   SendEnginData();
   SendTemperatureData();
   SendVoltages();
+  SendEnvironment();
   NMEA2000.ParseMessages();
 }
