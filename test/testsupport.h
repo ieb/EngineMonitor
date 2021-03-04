@@ -11,7 +11,6 @@
 
 
 
-
 using namespace fakeit;
 
 
@@ -96,7 +95,6 @@ void setupStream() {
 #define ESP_ERR_NVS_NEW_VERSION_FOUND 4
 typedef int32_t nvs_handle_t;
 typedef int32_t esp_err_t;
-
 
 int32_t nvs_flash_init(void) {
     return ESP_OK;

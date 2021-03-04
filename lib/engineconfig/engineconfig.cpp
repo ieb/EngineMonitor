@@ -87,13 +87,13 @@ void EngineConfig::help() {
     io->println("moff                                 - Disables sensor monitoring");
 
 
-    io->println("etc|engine temp config <r1>,<v>      - set engine coolant top resistor and voltage , floatx2, default 545.5,5");
+    io->println("etc|engine temp config <v>,<r>      - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
     io->println("ett|engine temp therm <n>,...<n>     - set engine coolant thermistor resistance values 0C-120C, floatx13, default as per manual");
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
     io->println("owc|1 wire <a>,..                  - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
     io->println("opc|oil pressure  <o>, <s>           - set oil pressure offset and scale, floatx2, defult 0.5,50");
-    io->println("flc|fuel level  <o>, <s>             - set fuel level offset and scale, floatx2, defult 0.18,17.182130584");
+    io->println("flc|fuel level  <v>,<r1>,<re>,<rf>   - set fuel level r1, voltage, rempty, rfull, floatx4, defult 5,545,190,3");
 
 
 
@@ -248,9 +248,13 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"Oil pressure offset %f", config->oilPressureOffset);
     io->println(buffer);
-    sprintf(buffer,"Fuel level scale %f", config->fuelLevelScale);
+    sprintf(buffer,"Fuel level V %f", config->fuelLevelVin);
     io->println(buffer);
-    sprintf(buffer,"Fuel level offset %f", config->fuelLevelOffset);
+    sprintf(buffer,"Fuel level R1 %f", config->fuelLevelR1);
+    io->println(buffer);
+    sprintf(buffer,"Fuel level R1 %f", config->fuelLevelEmptyR);
+    io->println(buffer);
+    sprintf(buffer,"Fuel level R1 %f", config->fuelLevelFullR);
     io->println(buffer);
     sprintf(buffer,"Engine RPM per Hz scale %f RPM/Hz", config->engineFlywheelRPMPerHz);
     io->println(buffer);
@@ -271,8 +275,8 @@ void EngineConfig::setEngineTempBridge(const char * data){
     float fields[2];
     int nfields = loadFloatTable(data, 2, &fields[0]);
     if ( nfields == 2 ) {
-        config->coolantTempR1 = fields[0];
-        config->coolantTempVin = fields[1];
+        config->coolantTempVin = fields[0];
+        config->coolantTempR1 = fields[1];
         io->println("Updated Coolant Thermistor config.");
     } else {
         io->println("Incorrect number of values supplied.");
@@ -334,11 +338,13 @@ void EngineConfig::setOilPressureConfig(const char * data){
     }
 }
 void EngineConfig::setFuelLevelCconfig(const char * data){
-    float fields[2];
-    int nfields = loadFloatTable(data, 2, &fields[0]);
-    if ( nfields == 2) {
-        config->fuelLevelOffset = fields[0];
-        config->fuelLevelScale = fields[1];
+    float fields[4];
+    int nfields = loadFloatTable(data, 4, &fields[0]);
+    if ( nfields == 4) {
+        config->fuelLevelVin = fields[0];
+        config->fuelLevelR1 = fields[1];
+        config->fuelLevelEmptyR = fields[2];
+        config->fuelLevelFullR = fields[3];
         io->println("Updated Fuel Level Config.");
     } else {
         io->println("Incorrect number of values supplied.");

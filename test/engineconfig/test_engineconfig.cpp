@@ -40,11 +40,11 @@ void test_etc() {
     TEST_ASSERT_EQUAL_FLOAT(545.5,engineConfig->config->coolantTempR1);
     TEST_ASSERT_EQUAL_FLOAT(5.0,engineConfig->config->coolantTempVin);
     MockStreamLoader loader;
-    loader.load("engine temp config 562.3,4.9\n");
+    loader.load("engine temp config 4.9,562.3\n");
     engineConfig->process();
     TEST_ASSERT_EQUAL_FLOAT(562.3,engineConfig->config->coolantTempR1);
     TEST_ASSERT_EQUAL_FLOAT(4.9,engineConfig->config->coolantTempVin);
-    loader.load("etc 568.3,4.7\n");
+    loader.load("etc 4.7,568.3\n");
     engineConfig->process();
     TEST_ASSERT_EQUAL_FLOAT(568.3,engineConfig->config->coolantTempR1);
     TEST_ASSERT_EQUAL_FLOAT(4.7,engineConfig->config->coolantTempVin);
@@ -165,17 +165,24 @@ void test_opc() {
 //    .fuelLevelScale = 0.18, // see method readFuleLevel
 //    .fuelLevelOffset = 17.182130584,
 void test_flc() {
-    TEST_ASSERT_EQUAL_FLOAT(0.18,engineConfig->config->fuelLevelOffset);
-    TEST_ASSERT_EQUAL_FLOAT(17.182130584,engineConfig->config->fuelLevelScale);
+    TEST_ASSERT_EQUAL_FLOAT(5.0,engineConfig->config->fuelLevelVin);
+    TEST_ASSERT_EQUAL_FLOAT(545.5,engineConfig->config->fuelLevelR1);
+    TEST_ASSERT_EQUAL_FLOAT(190.0,engineConfig->config->fuelLevelEmptyR);
+    TEST_ASSERT_EQUAL_FLOAT(3.0,engineConfig->config->fuelLevelFullR);
     MockStreamLoader loader;
-    loader.load("fuel level 0.15,15.110584\n");
+    loader.load("fuel level 5.2,560,180,4\n");
     engineConfig->process();
-    TEST_ASSERT_EQUAL_FLOAT(0.15,engineConfig->config->fuelLevelOffset);
-    TEST_ASSERT_EQUAL_FLOAT(15.110584,engineConfig->config->fuelLevelScale);
-    loader.load("flc 0.21,13.1820584\n");
+    TEST_ASSERT_EQUAL_FLOAT(5.2,engineConfig->config->fuelLevelVin);
+    TEST_ASSERT_EQUAL_FLOAT(560.0,engineConfig->config->fuelLevelR1);
+    TEST_ASSERT_EQUAL_FLOAT(180.0,engineConfig->config->fuelLevelEmptyR);
+    TEST_ASSERT_EQUAL_FLOAT(4.0,engineConfig->config->fuelLevelFullR);
+
+    loader.load("flc 5.3,562,173,8\n");
     engineConfig->process();
-    TEST_ASSERT_EQUAL_FLOAT(0.21,engineConfig->config->fuelLevelOffset);
-    TEST_ASSERT_EQUAL_FLOAT(13.1820584,engineConfig->config->fuelLevelScale);
+    TEST_ASSERT_EQUAL_FLOAT(5.3,engineConfig->config->fuelLevelVin);
+    TEST_ASSERT_EQUAL_FLOAT(562.0,engineConfig->config->fuelLevelR1);
+    TEST_ASSERT_EQUAL_FLOAT(173.0,engineConfig->config->fuelLevelEmptyR);
+    TEST_ASSERT_EQUAL_FLOAT(8.0,engineConfig->config->fuelLevelFullR);
 }
 
 

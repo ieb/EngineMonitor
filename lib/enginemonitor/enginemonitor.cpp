@@ -1,7 +1,18 @@
 
 #include "enginemonitor.h"
 #include "configstorage.h"
+
+
+
+#ifndef UNIT_TEST
 #include "esp_attr.h"
+#define debugf(args...) debugStream->printf(args)
+#else
+#define DRAM_ATTR
+#define IRAM_ATTR
+#define debugf(args...)
+ 
+#endif
 
 
 #define EDGE_PIN_0 GPIO_NUM_27
@@ -21,6 +32,13 @@
 #define VOLTAGE_SCALE  5.545454545 // (10+2.2)/(2.2)
 #define COOLANT_TEMPERATURE_R3 10000
 #define COOLANT_TEMPERATURE_R4 2200
+
+
+// 
+// Powered from the MDI, which supplies it with 5V
+// Will need to work out the resistance inside the MDI to 5V
+#define FUEL_LEVEL_R3 10000
+#define FUEL_LEVEL_R4 2200
 
 volatile DRAM_ATTR unsigned long edgeCount0 = 0;
 volatile DRAM_ATTR unsigned long edgeCount1 = 0;
@@ -56,8 +74,10 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .temperatureReadPeriod = 30000,
     .oilPressureScale = 50,  // 0.5V = 0PSI, 4.5V = 200, scale=200/(4.5-0.5)
     .oilPressureOffset = 0.5,
-    .fuelLevelScale = 17.182130584, // see method readFuleLevel
-    .fuelLevelOffset =  0.18, 
+    .fuelLevelVin = 5.0,
+    .fuelLevelR1 = 545.5,
+    .fuelLevelEmptyR = 190,
+    .fuelLevelFullR = 3,
     .engineFlywheelRPMPerHz = 6.224463028,
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
@@ -68,10 +88,26 @@ EngineMonitorConfig defaultEngineMonitorConfig {
 
 /**
  * 
- * 
+ *     Vin |
+       R1
+       |______ Vt
+       |     |
+       |     R3
+       |     |___ v
+       R2    |
+       |     R4
+   GND |_____|
+
  * 
  * 
  */
+
+float inline getBridgeSensorResistance(float v, float vin, float r1, float r3, float r4) {
+    float vt = v*(r3+r4)/r4;
+    float rn = vt*r1/(vin-vt);
+    return 1.0/((1/rn)-(1/(r3+r4)));
+}
+
 
 
 EngineMonitor::EngineMonitor(OneWire * _onewire, Stream * _debug) {
@@ -198,9 +234,7 @@ void EngineMonitor::readCoolant() {
   adc.setGain(GAIN_TWO);
   uint16_t vi = adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC);
   float adc1 = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
-  float vt = adc1*(COOLANT_TEMPERATURE_R3+COOLANT_TEMPERATURE_R4)/COOLANT_TEMPERATURE_R4;
-  float rn = vt*config->coolantTempR1/(config->coolantTempVin-vt);
-  float r2 = 1.0/((1/rn)-(1/(COOLANT_TEMPERATURE_R3+COOLANT_TEMPERATURE_R4)));
+  float r2 = getBridgeSensorResistance(adc1, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
   if ( r2 > config->coolantTempR2[0] ) {
     // below 0, assume straight line extending below 0-10C
     engineCoolantTemperature = 10.0*((config->coolantTempR2[0]-r2)/
@@ -212,7 +246,7 @@ void EngineMonitor::readCoolant() {
         engineCoolantTemperature = (10.0*(i-1))+
            10.0*((config->coolantTempR2[i-1]-r2)/
                  (config->coolantTempR2[i-1]-config->coolantTempR2[i]));
-        debugStream->printf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
+        debugf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
         return;
       }
     }
@@ -221,8 +255,7 @@ void EngineMonitor::readCoolant() {
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
   }
-    debugStream->printf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
-
+    debugf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
 }
 
 
@@ -266,8 +299,7 @@ void EngineMonitor::readFlywheelRPM() {
     engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
-  debugStream->printf("RPM  nedges=%lu  period=%lu f=%f rpm=%f \n",nedges, period, edgeFrequencyHz, flyWheelRPM);
-
+  debugf("RPM  nedges=%lu  period=%lu f=%f rpm=%f \n",nedges, period, edgeFrequencyHz, flyWheelRPM);
 }
 
 /**
@@ -283,8 +315,7 @@ void EngineMonitor::readOil() {
   adc.setGain(GAIN_ONE);
   float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC);
   oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (v))-config->oilPressureOffset);
-  debugStream->printf("Oil Pressure v=%f op=%f \n",v, oilPressure);
-
+  debugf("Oil Pressure v=%f op=%f \n",v, oilPressure);
 }
 
 void EngineMonitor::readFuel() {
@@ -307,18 +338,36 @@ void EngineMonitor::readFuel() {
        |     R4 (2K2)
    GND |_____|
 
-   Level changes liearly with level.
-   fuelLevelOffset = 0.18v
-   fuelLevelScale = 100/(6-0.18) = 17.182130584
+   R2 resistence changes liearly with level.
+  
+  190 = 0%
+  3 = 100%
+
+
+   offset = emptyR
+   scale = 100/(full-offset)
+
+   offset = 190
+   scale = 100/(3-190) = -0.5347593583
   */
 
+
+
 void EngineMonitor::readFuelTank() {
-    // fuelTankLevel, reads from a sensor, typically 3-190R, 3 being full 190 being empty, linear
+    // fuelTankLevel, reads from a sensor, typically 3-190R, 3 being full 190 being empty, linear resistor
   // would need R bridge, this doesnt need to be read actively
+  // does need to convert voltage to resistance to level, level is not linear to voltage.
   adc.setGain(GAIN_TWO);
   float v = ADC_V_GAIN_TWO * adc.readADC_SingleEnded(FUEL_LEVEL_ADC);
-  fuelTankLevel = config->fuelLevelScale*((VOLTAGE_SCALE * (v))-config->fuelLevelOffset);
-  debugStream->printf("Fuel Tank v=%f fl=%f \n",v, fuelTankLevel);
+  float r2 = getBridgeSensorResistance(v,config->fuelLevelVin, config->fuelLevelR1,FUEL_LEVEL_R3,FUEL_LEVEL_R4 );
+  float rawFuelTankLevel = (r2-config->fuelLevelEmptyR)*100.0/(config->fuelLevelFullR-config->fuelLevelEmptyR);
+  fuelTankLevel = rawFuelTankLevel;
+  if ( fuelTankLevel < 0.0) {
+    fuelTankLevel = 0.0;
+  } else {
+    fuelTankLevel = 100.0;
+  }
+  debugf("Fuel Tank v=%f r2=%f rfl=%f fl=%f \n",v, r2, rawFuelTankLevel, fuelTankLevel);
 }
 
 
@@ -326,8 +375,7 @@ void EngineMonitor::readSensors() {
   // rpm
   unsigned long readTime = millis();
   if ( readTime > lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod ) {
-    debugStream->printf("Reading RPM  %ld  %lu \n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
-
+    debugf("Reading RPM  %ld  %lu \n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
     readFlywheelRPM();
   }
 
@@ -335,10 +383,9 @@ void EngineMonitor::readSensors() {
   if ( readTime >  lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod ) {
 
 
-    debugStream->printf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
-    debugStream->printf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
-    debugStream->printf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
-
+    debugf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
+    debugf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
+    debugf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
     readCoolant();
     readOil();
     readFuel();
@@ -347,24 +394,24 @@ void EngineMonitor::readSensors() {
   }
 
   if ( readTime > lastVoltageReadTime+config->voltageReadPeriod  ) {
-    debugStream->printf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
-
+    debugf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
     adc.setGain(GAIN_ONE);
     float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC);
     alternatorVoltage = VOLTAGE_SCALE * (v);
-    debugStream->printf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
+    debugf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
     lastVoltageReadTime = readTime;
 
 
   }
   if ( readTime > lastTemperatureReadTime+config->temperatureReadPeriod  ) {
-    debugStream->printf("Reading External temps  %ld  %lu\n",lastTemperatureReadTime+config->temperatureReadPeriod, readTime );
+    debugf("Reading External temps  %ld  %lu\n",lastTemperatureReadTime+config->temperatureReadPeriod, readTime );
     // slow changing values.
     readFuelTank();
     // 1 wire sensors
     for (int i = 0; i < maxActiveDevice; i++) {
       temperature[i] = tempSensors.getTempC(tempDevices[i]);
-      debugStream->printf("Temperature i=%d t=%f \n",i,temperature[i]);
+      debugf("Temperature i=%d t=%f \n",i,temperature[i]);
+
     }
     lastTemperatureReadTime = readTime;
   }
@@ -403,7 +450,9 @@ void EngineMonitor::loadEngineHours() {
       float engineHoursLoad = 0;
       int32_t err = config::readStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursLoad, sizeof(float));
       if ( err == config::ok ) {
+#ifndef UNIT_TEST
         debugStream->printf("Loaded Engine Hours %f \n",engineHoursLoad);
+#endif
         engineHoursPrevious = engineHoursLoad;
       } else {
         debugStream->print("Load Engine Hours Failed, err:");
@@ -416,7 +465,9 @@ float EngineMonitor::saveEngineHours() {
   float engineHoursSave = getEngineHours();
   // save engine hours.
   if ( engineRunning ) {
+#ifndef UNIT_TEST
     debugStream->printf("Saving Engine Hours %f\n", engineHoursSave);
+#endif
     int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
     if ( err != config::ok ) {
       debugStream->print("Save Engine Hours Failed, err:");

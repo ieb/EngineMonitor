@@ -5,7 +5,18 @@
 #include <Arduino.h>
 
 
-#ifdef UNIT_TEST
+#ifndef UNIT_TEST
+#include <Adafruit_ADS1015.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <jdy40.h>
+
+#define unitout_ln(x)
+#define unitout(x) 
+
+
+#else
+// UNIT Test fakes
 #include <iostream> 
 #define unitout_ln(x) std::cout << x << std::endl
 #define unitout(x) std::cout << x 
@@ -53,17 +64,26 @@ class DallasTemperature {
 };
 
 class Jdy40 {
+  public:
+    bool setDeviceID(uint16_t id) {
+      return true;
+    };
+    bool setRFID(uint16_t id) {
+      return true;
+    };
+    void writeLine(const char * line) {
+
+    };
+    char * readLine() {
+      buffer[0] = '\0';
+      return &buffer[0];
+    };
+  private:
+     char buffer[20];
 
 };
 
-#else
-#include <Adafruit_ADS1015.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <jdy40.h>
 
-#define unitout_ln(x)
-#define unitout(x) 
 #endif
 
 #define MAX_ENGINE_TEMP 13
@@ -85,8 +105,10 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     int16_t temperatureReadPeriod;
     float oilPressureScale;
     float oilPressureOffset;
-    float fuelLevelScale;
-    float fuelLevelOffset;
+    float fuelLevelVin;
+    float fuelLevelR1;
+    float fuelLevelEmptyR;
+    float fuelLevelFullR;
     float engineFlywheelRPMPerHz;
     float coolantTempR1; // value of R1 in engine temp coolant bridge
     float coolantTempVin; // Open circuit voltage
