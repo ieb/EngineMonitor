@@ -151,6 +151,7 @@ class EngineMonitor {
       void readFlywheelRPM();
       float saveEngineHours();
       void loadEngineHours();
+      float getBridgeSensorResistance(float v, float vin, float r1, float r3, float r4);
       int maxActiveDevice = 0;
       unsigned long lastEdges = 0;
       unsigned long lastFlywheelRPMReadTime = 0;

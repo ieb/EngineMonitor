@@ -29,16 +29,19 @@
 #define ADC_V_GAIN_FOUR 0.00003125 // 1.024
 #define ADC_V_GAIN_TWO  0.0000625  // 2.048
 #define ADC_V_GAIN_ONE  0.000125  // 4.096
-#define VOLTAGE_SCALE  5.545454545 // (10+2.2)/(2.2)
-#define COOLANT_TEMPERATURE_R3 10000
+#define ALTERNATOR_VOLTAGE_SCALE  5.5272  // (9960+2200)/(2200)
+#define OIL_VOLTAGE_SCALE  5.5479 // (9960+2190)/(2190)
+// measured values on board
+#define COOLANT_TEMPERATURE_R3 9940
 #define COOLANT_TEMPERATURE_R4 2200
 
 
 // 
 // Powered from the MDI, which supplies it with 5V
 // Will need to work out the resistance inside the MDI to 5V
-#define FUEL_LEVEL_R3 10000
-#define FUEL_LEVEL_R4 2200
+// measured values onboard
+#define FUEL_LEVEL_R3 9970
+#define FUEL_LEVEL_R4 2180
 
 volatile DRAM_ATTR unsigned long edgeCount0 = 0;
 volatile DRAM_ATTR unsigned long edgeCount1 = 0;
@@ -102,10 +105,13 @@ EngineMonitorConfig defaultEngineMonitorConfig {
  * 
  */
 
-float inline getBridgeSensorResistance(float v, float vin, float r1, float r3, float r4) {
+float EngineMonitor::getBridgeSensorResistance(float v, float vin, float r1, float r3, float r4) {
     float vt = v*(r3+r4)/r4;
     float rn = vt*r1/(vin-vt);
-    return 1.0/((1/rn)-(1/(r3+r4)));
+    float r2 = 1.0/((1/rn)-(1/(r3+r4)));
+    debugf("Reistor Bridge  vt=%f  rn=%f r2=%f  vin=%f r1=%f r3=%f r4=%f\n",vt, rn, r2, vin, r1, r3, r4);
+    return r2;
+
 }
 
 
@@ -231,7 +237,7 @@ C   K   R2
 void EngineMonitor::readCoolant() {
   // coolantPressure, needs sensor
   // engineCoolantTemperature
-  adc.setGain(GAIN_TWO);
+  adc.setGain(GAIN_FOUR);
   uint16_t vi = adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC);
   float adc1 = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
   float r2 = getBridgeSensorResistance(adc1, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
@@ -246,7 +252,7 @@ void EngineMonitor::readCoolant() {
         engineCoolantTemperature = (10.0*(i-1))+
            10.0*((config->coolantTempR2[i-1]-r2)/
                  (config->coolantTempR2[i-1]-config->coolantTempR2[i]));
-        debugf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
+        debugf("Coolant  v=%f  r2=%f t=%f \n",adc1, r2,engineCoolantTemperature);
         return;
       }
     }
@@ -255,7 +261,7 @@ void EngineMonitor::readCoolant() {
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
   }
-    debugf("Coolant  v=%f  vt=%f r2=%f t=%f \n",adc1, vt, r2,engineCoolantTemperature);
+    debugf("Coolant  v=%f  r2=%f t=%f \n",adc1, r2,engineCoolantTemperature);
 }
 
 
@@ -314,7 +320,7 @@ void EngineMonitor::readOil() {
   // oilPressure, needs sensor
   adc.setGain(GAIN_ONE);
   float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC);
-  oilPressure = config->oilPressureScale*((VOLTAGE_SCALE * (v))-config->oilPressureOffset);
+  oilPressure = config->oilPressureScale*((OIL_VOLTAGE_SCALE * (v))-config->oilPressureOffset);
   debugf("Oil Pressure v=%f op=%f \n",v, oilPressure);
 }
 
@@ -397,7 +403,7 @@ void EngineMonitor::readSensors() {
     debugf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
     adc.setGain(GAIN_ONE);
     float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC);
-    alternatorVoltage = VOLTAGE_SCALE * (v);
+    alternatorVoltage = ALTERNATOR_VOLTAGE_SCALE * (v);
     debugf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
     lastVoltageReadTime = readTime;
 
