@@ -3,31 +3,6 @@
 #include <cstdlib>
 
 
-#define CMD_HELP 0
-#define CMD_DUMP 1
-#define CMD_SAVE 2
-#define CMD_LOAD 3
-#define CMD_RESET 4
-#define CMD_ACTIVATE 5
-#define CMD_ENABLE_OUTPUT 6
-#define CMD_DISABLE_OUTPUT 7
-#define CMD_ENABLE_MON 8
-#define CMD_DISABLE_MON 9
-#define CMD_ETC_S 10
-#define CMD_ETC_L 11
-#define CMD_ETT_S 12
-#define CMD_ETT_L 13
-
-#define CMD_RPM_S 14
-#define CMD_OWC_S 15
-#define CMD_OWC_L 16
-#define CMD_RPC_S 17
-#define CMD_RPC_L 18
-#define CMD_OPC_S 19
-#define CMD_OPC_L 20
-#define CMD_FLC_S 21
-#define CMD_FLC_L 22
-#define NCOMMANDS 23
 
 
 static const char * engineconfig_commands[] = {
@@ -37,8 +12,6 @@ static const char * engineconfig_commands[] = {
     "load",
     "reset",
     "activate",
-    "on",
-    "off",
     "mon",
     "moff",
     "etc ",
@@ -53,7 +26,8 @@ static const char * engineconfig_commands[] = {
     "opc ",
     "oil pressure ",
     "flc ",
-    "fuel level "
+    "fuel level ",
+    "status"
 };
 
 
@@ -81,25 +55,24 @@ void EngineConfig::help() {
     io->println("load                                 - Loads configuration from no volatile storage");
     io->println("reset                                - Factory reset");
     io->println("actviate                             - Activates Current configuration");
-    io->println("on                                   - Enables diagnostic output");
-    io->println("off                                  - Disables diagnostic output");
     io->println("mon                                  - Enables sensor monitoring");
     io->println("moff                                 - Disables sensor monitoring");
 
 
-    io->println("etc|engine temp config <v>,<r>      - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
+    io->println("etc|engine temp config <v>,<r>       - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
     io->println("ett|engine temp therm <n>,...<n>     - set engine coolant thermistor resistance values 0C-120C, floatx13, default as per manual");
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
-    io->println("owc|1 wire <a>,..                  - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
+    io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
     io->println("opc|oil pressure  <o>, <s>           - set oil pressure offset and scale, floatx2, defult 0.5,50");
     io->println("flc|fuel level  <v>,<r1>,<re>,<rf>   - set fuel level r1, voltage, rempty, rfull, floatx4, defult 5,545,190,3");
+    io->println("status                               - output current status.");
 
 
 
 }
 
-void EngineConfig::docmd(const char * command) {
+int8_t EngineConfig::docmd(const char * command) {
     const char *data;
     int cid = match(command, engineconfig_commands, NCOMMANDS, &data );
     unitout("Matched "); unitout_ln(cid); 
@@ -122,12 +95,6 @@ void EngineConfig::docmd(const char * command) {
             break;
         case CMD_HELP: 
             help(); 
-            break;
-        case CMD_ENABLE_OUTPUT: 
-            enableOutput(true); 
-            break;
-        case CMD_DISABLE_OUTPUT: 
-            enableOutput(false); 
             break;
         case CMD_ENABLE_MON:
             enableMonitoring(true);
@@ -162,6 +129,9 @@ void EngineConfig::docmd(const char * command) {
         case CMD_FLC_L:
             setFuelLevelCconfig(data);
             break;
+        case CMD_STATUS:
+            // handled by callback
+            break;
 
         default:
             io->print(F("Command Not recognised:"));
@@ -169,6 +139,7 @@ void EngineConfig::docmd(const char * command) {
             break;
 
     }
+    return cid;
 }
 
 void EngineConfig::save() {
@@ -201,13 +172,6 @@ void EngineConfig::load() {
     }
 }
 
-void EngineConfig::enableOutput(bool enable) {
-    outputOn = enable;
-}
-
-bool EngineConfig::isOutputEnabled() {
-    return outputOn;
-}
 
 void EngineConfig::enableMonitoring(bool enable) {
     monitoringOn = enable;
@@ -218,11 +182,12 @@ bool EngineConfig::isMonitoringEnabled() {
 }
 
 
-void EngineConfig::process() {
+
+void EngineConfig::process(void cb(int8_t)) {
     char * command = readLine();
     if ( command != NULL ) {
         unitout("Processing"); unitout_ln(inputLine);
-        docmd(command);
+        cb(docmd(command));
         io->print("$>");
     }
 }

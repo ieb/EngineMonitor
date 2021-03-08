@@ -6,7 +6,7 @@
 
 #ifndef UNIT_TEST
 #include "esp_attr.h"
-#define debugf(args...) debugStream->printf(args)
+#define debugf(args...) if ( debugOutput ) debugStream->printf(args)
 #else
 #define DRAM_ATTR
 #define IRAM_ATTR
@@ -377,8 +377,9 @@ void EngineMonitor::readFuelTank() {
 }
 
 
-void EngineMonitor::readSensors() {
+void EngineMonitor::readSensors(bool debug) {
   // rpm
+  debugOutput = debug;
   unsigned long readTime = millis();
   if ( readTime > lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod ) {
     debugf("Reading RPM  %ld  %lu \n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
@@ -456,9 +457,7 @@ void EngineMonitor::loadEngineHours() {
       float engineHoursLoad = 0;
       int32_t err = config::readStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursLoad, sizeof(float));
       if ( err == config::ok ) {
-#ifndef UNIT_TEST
-        debugStream->printf("Loaded Engine Hours %f \n",engineHoursLoad);
-#endif
+        debugf("Loaded Engine Hours %f \n",engineHoursLoad);
         engineHoursPrevious = engineHoursLoad;
       } else {
         debugStream->print("Load Engine Hours Failed, err:");
@@ -471,9 +470,7 @@ float EngineMonitor::saveEngineHours() {
   float engineHoursSave = getEngineHours();
   // save engine hours.
   if ( engineRunning ) {
-#ifndef UNIT_TEST
-    debugStream->printf("Saving Engine Hours %f\n", engineHoursSave);
-#endif
+    debugf("Saving Engine Hours %f\n", engineHoursSave);
     int32_t err = config::writeStorage(STORAGE_NAMESPACE, ENGINE_HOURS_KEY, &engineHoursSave, sizeof(float));
     if ( err != config::ok ) {
       debugStream->print("Save Engine Hours Failed, err:");

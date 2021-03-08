@@ -4,6 +4,7 @@
 
 
 //#define SERIAL_DEBUG_DISABLED
+// #define DEBUG_NMEA2000 1
 
 #define ESP32_CAN_TX_PIN GPIO_NUM_19
 #define ESP32_CAN_RX_PIN GPIO_NUM_18
@@ -24,7 +25,7 @@
 #include <enginemonitor.h>
 #include <engineconfig.h>
 
-// #define BLUETOOTHCLASSIC 1
+#define BLUETOOTHCLASSIC 1
 #ifdef BLUETOOTHCLASSIC
 #include <BlueToothSerial.h>
 BluetoothSerial SerialBT;
@@ -107,10 +108,12 @@ void setup() {
                                );
 
   // debugging with no chips connected.
+#ifdef DEBUG_NMEA2000
   NMEA2000.SetForwardStream(&SerialIO);
   NMEA2000.SetDebugMode(tNMEA2000::dm_ClearText);
   NMEA2000.SetForwardType(tNMEA2000::fwdt_Text); 
   NMEA2000.SetDebugMode(tNMEA2000::dm_ClearText); // Uncomment this, so you can test code without CAN bus chips on Arduino Mega
+#endif
 
   // this is a node, we are not that interested in other traffic on the bus.
   NMEA2000.SetMode(tNMEA2000::N2km_NodeOnly,23);
@@ -133,6 +136,7 @@ void setup() {
 #define EnvironmentUpdatePeriod 60000
 
 void SendRapidEnginData() {
+  static int8_t stopping = 5;
   static unsigned long RapidEngineUpdated=millis();
   tN2kMsg N2kMsg;
 
@@ -141,7 +145,12 @@ void SendRapidEnginData() {
     if ( engineConfig.isMonitoringEnabled() ) {
       SerialIO.printf("RPM %f\n",rpm);
     }
-    if (rpm > 0) {
+    if ( rpm > 0 ) {
+      stopping = 5;
+    } else if ( stopping > 0 ) {
+      stopping--;
+    }
+    if (stopping > 0) {
       // PGN127488
       SetN2kEngineParamRapid(N2kMsg, 1, rpm);
       NMEA2000.SendMsg(N2kMsg);
@@ -183,7 +192,7 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
                        int8_t EngineLoad=N2kInt8NA, int8_t EngineTorque=N2kInt8NA,
                        tN2kEngineDiscreteStatus1 Status1=0, tN2kEngineDiscreteStatus2 Status2=0) {
                          */
-    SetN2kEngineDynamicParam(N2kMsg, 1, oilPressure, oilTemperature, temperature, alternatorVoltage,
+    SetN2kEngineDynamicParam(N2kMsg, 1, oilPressure, CToKelvin(oilTemperature), CToKelvin(temperature), alternatorVoltage,
                        fuelRate, engineHours, coolantPressure, fuelPressure, load, torque, status1, status2);
 
     NMEA2000.SendMsg(N2kMsg);
@@ -191,6 +200,8 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
 
   }
 }
+
+
 
 void SendTemperatureData() {
   static unsigned long TemperatureUpdated=millis();
@@ -203,11 +214,11 @@ void SendTemperatureData() {
         engineMonitor.getEngineRoomTemperature(), engineMonitor.getExhaustTemperature(), engineMonitor.getAlternatorTemperature());
     }
 
-    SetN2kTemperature(N2kMsg, 1, 1, N2kts_EngineRoomTemperature, engineMonitor.getEngineRoomTemperature());
+    SetN2kTemperature(N2kMsg, 1, 1, N2kts_EngineRoomTemperature, CToKelvin(engineMonitor.getEngineRoomTemperature()));
     NMEA2000.SendMsg(N2kMsg);
-    SetN2kTemperature(N2kMsg, 2, 2, N2kts_ExhaustGasTemperature, engineMonitor.getExhaustTemperature());
+    SetN2kTemperature(N2kMsg, 2, 2, N2kts_ExhaustGasTemperature, CToKelvin(engineMonitor.getExhaustTemperature()));
     NMEA2000.SendMsg(N2kMsg);
-    SetN2kTemperature(N2kMsg, 3, 3, N2kts_LiveWellTemperature, engineMonitor.getAlternatorTemperature());
+    SetN2kTemperature(N2kMsg, 3, 3, N2kts_LiveWellTemperature, CToKelvin(engineMonitor.getAlternatorTemperature()));
     NMEA2000.SendMsg(N2kMsg);
     TemperatureUpdated=millis();
   }
@@ -243,6 +254,7 @@ void SendVoltages() {
   }
 }
 
+
 void SendEnvironment() {
   static unsigned long EnvironmentUpdated=millis();
   if ( hasBMP280 ) {
@@ -254,13 +266,10 @@ void SendEnvironment() {
       double temperature = bmp.readTemperature();
       double pressure =  bmp.readPressure();
 
-      Serial.print(F("Temperature = "));
-      Serial.print(temperature);
-      Serial.println(" *C");
-
-      Serial.print(F("Pressure = "));
-      Serial.print(pressure);
-      Serial.println(" Pa");
+    if ( engineConfig.isMonitoringEnabled() ) {
+      SerialIO.printf("Environment t=%f, p=%f\n",
+        temperature, pressure);
+    }
 
       // PGN130311
       SetN2kEnvironmentalParameters(N2kMsg,4,
@@ -275,19 +284,45 @@ void SendEnvironment() {
 
 }
 
+void DumpStatus() {
+    SerialIO.printf("RPM                     = %f\n",engineMonitor.getFlyWheelRPM());
+    SerialIO.printf("Coolant Temperature     = %f\n", engineMonitor.getCoolantTemperature());
+    SerialIO.printf("Alternator Voltage      = %f\n", engineMonitor.getAlternatorVoltage());
+    SerialIO.printf("Oil Pressure            = %f\n", engineMonitor.getOilPressure());
+    SerialIO.printf("Oil Temperature         = %f\n", engineMonitor.getOilTemperature());
+    SerialIO.printf("Fuel Rate               = %f\n", engineMonitor.getFuelRate());
+    SerialIO.printf("Engine Hours            = %f\n", engineMonitor.getEngineHours());
+    SerialIO.printf("Coolant Pressure        = %f\n", engineMonitor.getCoolantPressure());
+    SerialIO.printf("Fuel Pressure           = %f\n", engineMonitor.getFuelPressure());
+    SerialIO.printf("Load                    = %d\n", engineMonitor.getLoad());
+    SerialIO.printf("Tourque                 = %d\n", engineMonitor.getTorque());
+    SerialIO.printf("Status1                 = %d\n", engineMonitor.getStatus1()); /* tN2kEngineDiscreteStatus1 */
+    SerialIO.printf("Status2                 = %d\n", engineMonitor.getStatus2());/* tN2kEngineDiscreteStatus2 */
+    SerialIO.printf("Engine Room Temperature = %f\n", engineMonitor.getEngineRoomTemperature());
+    SerialIO.printf("Exhaust Temperature     = %f\n", engineMonitor.getExhaustTemperature());
+    SerialIO.printf("Alternator Temperature  = %f\n", engineMonitor.getAlternatorTemperature());
+    SerialIO.printf("Inside Temperature      = %f\n", bmp.readTemperature());
+    SerialIO.printf("Insire Pressure         = %f\n", bmp.readPressure());
+
+}
+
+void CallBack(int8_t cmd) {
+  switch(cmd) {
+    case CMD_STATUS:
+      DumpStatus();
+      break;
+  }
+}
+
 
 
 
 void loop() {
   // read the serial data and process.
-  engineConfig.process();
-  engineMonitor.readSensors();
-  if ( engineConfig.isOutputEnabled() ) {
-    NMEA2000.SetForwardStream(&SerialIO);
-  } else {
-    NMEA2000.SetForwardStream(0);
-  }
+  engineConfig.process(CallBack);
+  engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
   // Send to N2K Bus
+
   SendRapidEnginData();
   SendEnginData();
   SendTemperatureData();

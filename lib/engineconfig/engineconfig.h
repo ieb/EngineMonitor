@@ -16,6 +16,32 @@
 
 #define READBUFFER_LEN 1024
 
+#define CMD_HELP 0
+#define CMD_DUMP 1
+#define CMD_SAVE 2
+#define CMD_LOAD 3
+#define CMD_RESET 4
+#define CMD_ACTIVATE 5
+#define CMD_ENABLE_MON 6
+#define CMD_DISABLE_MON 7
+#define CMD_ETC_S 8
+#define CMD_ETC_L 9
+#define CMD_ETT_S 10
+#define CMD_ETT_L 11
+
+#define CMD_RPM_S 12
+#define CMD_OWC_S 13
+#define CMD_OWC_L 14
+#define CMD_RPC_S 15
+#define CMD_RPC_L 16
+#define CMD_OPC_S 17
+#define CMD_OPC_L 18
+#define CMD_FLC_S 19
+#define CMD_FLC_L 20
+#define CMD_STATUS 21
+#define NCOMMANDS 22
+
+
 union ConfigBlob {
     char blob[sizeof(EngineMonitorConfig)];    
     EngineMonitorConfig config;
@@ -27,14 +53,13 @@ class EngineConfig {
         EngineConfig(EngineMonitor * engineMonitor, Stream * _io = &Serial);
         void begin(void);
         void dump();
-        void process();
-        bool isOutputEnabled();
+        void process(void cb(int8_t));
         bool isMonitoringEnabled();
         ConfigBlob configBlob;
         EngineMonitorConfig * config;
     private:
         char * readLine();
-        void docmd(const char * command);
+        int8_t docmd(const char * command);
         void save();
         void load();
         void reset();
@@ -50,11 +75,9 @@ class EngineConfig {
         int loadFloatTable(const char * data, int size, float * table);
         int loadLongTable(const char * data, int size, int16_t * table);
         int match(const char * command, const char ** commands, int ncommands, const char ** startData);
-        void enableOutput(bool enable);
         void enableMonitoring(bool enable);
         Stream* io;
         EngineMonitor* engineMonitor;
-        bool outputOn = false;
         bool monitoringOn = false;
         int bufferPos = 0;
         char inputLine[READBUFFER_LEN];

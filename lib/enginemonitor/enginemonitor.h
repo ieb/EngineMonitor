@@ -122,7 +122,7 @@ class EngineMonitor {
     public:
       EngineMonitor(OneWire * _oneWire, Stream * _debug = &Serial);
       void calibrate(EngineMonitorConfig * config);
-      void readSensors();
+      void readSensors(bool debug);
       void begin();
 
       int8_t getLoad(); 
@@ -159,6 +159,7 @@ class EngineMonitor {
       unsigned long lastVoltageReadTime = 0;
       unsigned long lastTemperatureReadTime = 0;
       bool engineRunning = false;
+      bool debugOutput = false;
       unsigned long engineStarted = 0;
       float engineHoursPrevious = 0.0;
       uint16_t status1 = 0;
