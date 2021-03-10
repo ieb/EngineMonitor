@@ -129,6 +129,37 @@ for coolant temp
    ADC2 = Oil Pressure
    ADC3 = Fuel Level
 
+# NMEA2000 connection
+
+Using an AMP Superseal 4 way connector
+Pin 1 +12V
+Pin 2 GND
+Pin 3 CanL
+Pin 4 CanH
+Shield GND plane on PCB
+
+GND connected to the NMEA2000 bus may need to be reviewed depending on if there is any voltage differential between NMEA2000 GND and Engine GND due to Charging currents from the alternator. Coolant Temperature will be impacted the most followed by Fuel Level, Oil Pressure and Alternator voltage if there is a significant voltage drop. This will put the NMEA2000 GND +ve to the engine GND increasing the aparant measured coolant temperature and Fuel level when the Alternator is producing high charge output. The GND connection from Engine to Ships GND is short, but not 0R.  
+
+
+# NMEA2000 PGNs
+
+When connecting the EngineMonitor to a Raymarine MFD it reported errors for messages not expected in Class 50, Propulsion, Function 160 Engine gateway. The suspicion is that non Engine related messages need to be emitted from NMEA2000 device other than the Engine
+
+Engine Monitor Device Class 50 Propulsion, Function 160 Engine gateway. or 140 Engine
+127488 (0x1F200) Engine Parameters, Rapid Update 0.1s
+127489 (0x1F201) Engine Parameters, Dynamic 0.5s
+127505 (0x1F211) Fluid Level 2.5s
+130316 (0x1FD0C) Temperature Extended Range
+
+General Temperatures 75/130
+130312 (0x1FD08) Temperatures
+
+Atmospheric 85/130
+130311 (0x1FD07) Environmental Parameters 10s
+
+Batteries 35/170
+127508 (0x1F214) Battery Status
+
 
 
 # Related information
@@ -158,3 +189,20 @@ J1939 is not NMEA2000, as the message structure is different and hence to connec
 # Bench testing
 
 Obviously it is not ideal to bench test with a real engine so its mocked up using a signal generator and a scope. The W+ terminal on the alternator is produced with a 2V sine wave into a 2N2222 switch powered by 14v so that the output is roughly a 14V sine wave.   The temperature sensor is a resistor bridge with the thermistor replaced by a 20 turn pot. 5V supply through a zener powered by 12v trough a 470R. The other voltages are generated with 20 turn 10K pots.
+
+# Tests and todo
+
+* [x] Pulse to Frequency
+* [x] ADC measurement on all channels
+* [x] Tested on engine
+* [x] Fix: make engine port not starboard
+* [?] Fix: potential fix of 8 unkown status messages from the device, possibly caused by using 1 device for all messages.
+* [x] make device message period configurable
+* [x] Shorten rpm send and sample period without loosing precision, currently sampling at 2s, needs to send at 0.2s
+* [ ] Fix engine on detection.
+* [ ] Support Bluetooth enable button
+* [ ] Check 1-wire temperature sensors
+* [x] Coolant Temperature conversion
+* [x] Alternator pulse verified
+* [ ] Fuel Level conversion
+* [ ] Add Oil pressure sensor 

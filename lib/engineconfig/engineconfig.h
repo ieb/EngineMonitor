@@ -39,13 +39,16 @@
 #define CMD_FLC_S 19
 #define CMD_FLC_L 20
 #define CMD_STATUS 21
-#define NCOMMANDS 22
+#define CMD_UPD_S 22
+#define CMD_UPD_L 23
+#define NCOMMANDS 24
 
 
 union ConfigBlob {
     char blob[sizeof(EngineMonitorConfig)];    
     EngineMonitorConfig config;
 };
+
 
 
 class EngineConfig {
@@ -65,6 +68,7 @@ class EngineConfig {
         void reset();
         void activate();
         void help();
+        void setUpdatePeriod(const char * data);
         void setEngineTempBridge(const char * data);
         void setEngineTempThermistor(const char * data);
         void setEngineRpmScale(const char * data);
@@ -74,6 +78,7 @@ class EngineConfig {
         void setFuelLevelCconfig(const char * data);
         int loadFloatTable(const char * data, int size, float * table);
         int loadLongTable(const char * data, int size, int16_t * table);
+        int loadUnsignedLongTable(const char * data, int size, unsigned long * table);
         int match(const char * command, const char ** commands, int ncommands, const char ** startData);
         void enableMonitoring(bool enable);
         Stream* io;

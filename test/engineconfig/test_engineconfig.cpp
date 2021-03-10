@@ -22,16 +22,19 @@ void tearDown(void) {
 }
 
 
+void Callback(int8_t i) {
+}
+
 void test_help() {
     MockStreamLoader loader;
     loader.load("help\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
 }
 
 void test_dump() {
     MockStreamLoader loader;
     loader.load("dump\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
 }
 
 // etc|engine temp config <r1>,<v>      - set engine coolant top resistor and voltage , floatx2, default 545.5,5[Serial]
@@ -41,11 +44,11 @@ void test_etc() {
     TEST_ASSERT_EQUAL_FLOAT(5.0,engineConfig->config->coolantTempVin);
     MockStreamLoader loader;
     loader.load("engine temp config 4.9,562.3\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(562.3,engineConfig->config->coolantTempR1);
     TEST_ASSERT_EQUAL_FLOAT(4.9,engineConfig->config->coolantTempVin);
     loader.load("etc 4.7,568.3\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(568.3,engineConfig->config->coolantTempR1);
     TEST_ASSERT_EQUAL_FLOAT(4.7,engineConfig->config->coolantTempVin);
 }
@@ -59,34 +62,34 @@ void test_ett() {
     }
     MockStreamLoader loader;
     loader.load("engine temp therm 1743, 1076, 677, 465, 291, 197, 134, 97, 62, 51,38  ,29, 22 \n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(changedValues[i],engineConfig->config->coolantTempR2[i]);
     }
     loader.load("engine temp therm 1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 \n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(defaultValues[i],engineConfig->config->coolantTempR2[i]);
     }
     loader.load("ett 1743, 1076, 677, 465, 291, 197, 134, 97, 62, 51,38  ,29, 22 \n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(changedValues[i],engineConfig->config->coolantTempR2[i]);
     }
     loader.load("ett 1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 \n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(defaultValues[i],engineConfig->config->coolantTempR2[i]);
     }
     // check for no change
     loader.load("ett 1743, 1076, 677, 465, 291, 197, 134, 97, 62, 51,38  ,29\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(defaultValues[i],engineConfig->config->coolantTempR2[i]);
     }
     // check too many are simply accepted
     loader.load("ett 1743, 1076, 677, 465, 291, 197, 134, 97, 62, 51,38  ,29, 22,24\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     for (int i = 0; i < 13; i++ ) {
         TEST_ASSERT_EQUAL_FLOAT(changedValues[i],engineConfig->config->coolantTempR2[i]);
     }
@@ -99,7 +102,7 @@ void test_rpm_scale() {
     MockStreamLoader loader;
     loader.load("rpm scale 8.224463028\n");
     std::cout << " Processing " <<  std::endl;
-    engineConfig->process();
+    engineConfig->process(Callback);
     std::cout << 8.224463028 << " == " << engineConfig->config->engineFlywheelRPMPerHz << std::endl;
     TEST_ASSERT_EQUAL_FLOAT(8.224463028,engineConfig->config->engineFlywheelRPMPerHz);
 }
@@ -111,12 +114,12 @@ void test_owc() {
     TEST_ASSERT_EQUAL_INT(2,engineConfig->config->engineRoomTemperatureIDX);
     MockStreamLoader loader;
     loader.load("1 wire 1,2,0\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_INT(1,engineConfig->config->alternatorTemperatureIDX);
     TEST_ASSERT_EQUAL_INT(2,engineConfig->config->exhaustTemperatureIDX);
     TEST_ASSERT_EQUAL_INT(0,engineConfig->config->engineRoomTemperatureIDX);
     loader.load("owc 2,0,1\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_INT(2,engineConfig->config->alternatorTemperatureIDX);
     TEST_ASSERT_EQUAL_INT(0,engineConfig->config->exhaustTemperatureIDX);
     TEST_ASSERT_EQUAL_INT(1,engineConfig->config->engineRoomTemperatureIDX);
@@ -125,19 +128,19 @@ void test_owc() {
 // rpc|read period  <r>,..        - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000[Serial]
 
 void test_rpc() {
-    TEST_ASSERT_EQUAL_INT(2000,engineConfig->config->flywheelRPMReadPeriod);
+    TEST_ASSERT_EQUAL_INT(100,engineConfig->config->flywheelRPMReadPeriod);
     TEST_ASSERT_EQUAL_INT(5000,engineConfig->config->engineTemperatureReadPeriod);
     TEST_ASSERT_EQUAL_INT(10000,engineConfig->config->voltageReadPeriod);
     TEST_ASSERT_EQUAL_INT(30000,engineConfig->config->temperatureReadPeriod);
     MockStreamLoader loader;
     loader.load("read period  2001,5001,10001,30001\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_INT(2001,engineConfig->config->flywheelRPMReadPeriod);
     TEST_ASSERT_EQUAL_INT(5001,engineConfig->config->engineTemperatureReadPeriod);
     TEST_ASSERT_EQUAL_INT(10001,engineConfig->config->voltageReadPeriod);
     TEST_ASSERT_EQUAL_INT(30001,engineConfig->config->temperatureReadPeriod);
     loader.load("rpc  2002,5002,10002,30002\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_INT(2002,engineConfig->config->flywheelRPMReadPeriod);
     TEST_ASSERT_EQUAL_INT(5002,engineConfig->config->engineTemperatureReadPeriod);
     TEST_ASSERT_EQUAL_INT(10002,engineConfig->config->voltageReadPeriod);
@@ -152,11 +155,11 @@ void test_opc() {
     TEST_ASSERT_EQUAL_FLOAT(50,engineConfig->config->oilPressureScale);
     MockStreamLoader loader;
     loader.load("oil pressure 0.7,84.3\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(0.7,engineConfig->config->oilPressureOffset);
     TEST_ASSERT_EQUAL_FLOAT(84.3,engineConfig->config->oilPressureScale);
     loader.load("opc 0.21,30.2\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(0.21,engineConfig->config->oilPressureOffset);
     TEST_ASSERT_EQUAL_FLOAT(30.2,engineConfig->config->oilPressureScale);
 }
@@ -171,20 +174,37 @@ void test_flc() {
     TEST_ASSERT_EQUAL_FLOAT(3.0,engineConfig->config->fuelLevelFullR);
     MockStreamLoader loader;
     loader.load("fuel level 5.2,560,180,4\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(5.2,engineConfig->config->fuelLevelVin);
     TEST_ASSERT_EQUAL_FLOAT(560.0,engineConfig->config->fuelLevelR1);
     TEST_ASSERT_EQUAL_FLOAT(180.0,engineConfig->config->fuelLevelEmptyR);
     TEST_ASSERT_EQUAL_FLOAT(4.0,engineConfig->config->fuelLevelFullR);
 
     loader.load("flc 5.3,562,173,8\n");
-    engineConfig->process();
+    engineConfig->process(Callback);
     TEST_ASSERT_EQUAL_FLOAT(5.3,engineConfig->config->fuelLevelVin);
     TEST_ASSERT_EQUAL_FLOAT(562.0,engineConfig->config->fuelLevelR1);
     TEST_ASSERT_EQUAL_FLOAT(173.0,engineConfig->config->fuelLevelEmptyR);
     TEST_ASSERT_EQUAL_FLOAT(8.0,engineConfig->config->fuelLevelFullR);
 }
-
+void test_upd() {
+    MockStreamLoader loader;
+    loader.load("upd 127488,4788\n");
+    engineConfig->process(Callback);
+    loader.load("upd 127489,7489\n");
+    engineConfig->process(Callback);
+    loader.load("upd 130312,312\n");
+    engineConfig->process(Callback);
+    loader.load("upd 127508,7508\n");
+    engineConfig->process(Callback);
+    loader.load("upd 130311,311\n");
+    engineConfig->process(Callback);
+    TEST_ASSERT_EQUAL_UINT16(4788,engineConfig->config->rapidEngineUpdatePeriod);
+    TEST_ASSERT_EQUAL_UINT16(7489,engineConfig->config->engineUpdatePeriod);
+    TEST_ASSERT_EQUAL_UINT16(312,engineConfig->config->temperatureUpdatePeriod);
+    TEST_ASSERT_EQUAL_UINT16(7508,engineConfig->config->voltageUpdatePeriod);
+    TEST_ASSERT_EQUAL_UINT16(311,engineConfig->config->environmentUpdatePeriod);
+}
 
 /*
 void test_angle_correction() {
@@ -302,6 +322,7 @@ int main(int argc, char **argv) {
         RUN_TEST(test_rpc);
         RUN_TEST(test_opc);
         RUN_TEST(test_flc);
+        RUN_TEST(test_upd);
         return UNITY_END();
     } catch( UnexpectedMethodCallException e) {
             std::cout << "Exception:" << e << std::endl;

@@ -65,16 +65,27 @@ unsigned long readEdges(uint8_t chno) {
 }
 
 
+#define RapidEngineUpdatePeriod 100
+#define EngineUpdatePeriod 1000
+#define TemperatureUpdatePeriod 10000
+#define VoltageUpdatePeriod 5000
+#define EnvironmentUpdatePeriod 60000
+
 
 
 EngineMonitorConfig defaultEngineMonitorConfig {
     .alternatorTemperatureIDX = 0,
     .exhaustTemperatureIDX = 1,
     .engineRoomTemperatureIDX = 2,
-    .flywheelRPMReadPeriod = 2000,
+    .flywheelRPMReadPeriod = 100,
     .engineTemperatureReadPeriod = 5000,
     .voltageReadPeriod = 10000,
     .temperatureReadPeriod = 30000,
+    .rapidEngineUpdatePeriod = 100,
+    .engineUpdatePeriod = 1000,
+    .temperatureUpdatePeriod = 10000,
+    .voltageUpdatePeriod = 5000,
+    .environmentUpdatePeriod = 60000,
     .oilPressureScale = 50,  // 0.5V = 0PSI, 4.5V = 200, scale=200/(4.5-0.5)
     .oilPressureOffset = 0.5,
     .fuelLevelVin = 5.0,
@@ -266,36 +277,51 @@ void EngineMonitor::readCoolant() {
 
 
 /**
- * The RPM of the engine is sensed fromthe W+ terminal of the alternator where edges are counted.
- * The frequency of the W+ terminal ranges from 80Hz to 1KHz (6K rpm flywheel)
- * Reading once every 2s results in an accuracy of 1/160 at worst which is perfectly good enougn
- *
- * The Flywheel RPM to W+ Hz conversion was measured at 0.1606564286 Hz/Flywheel RPM,
- * hence the the conversion factor to convert +W Hz to Flywheel Hz is 0.1037410505
- * And the RPM per W+ HZ is 6.224463028, this one is probably the easiest to understand.
+ * Pulse RPM/Hz is 6.224463028 based on measurements and means squared curve fitting. 
+ * Measurements
+ * RPM	Hz
+ * 0	
+ * 750	137
+ * 1000	162
+ * 1500	238
+ * 2000	325
+ * 2500	394
+ * 3000	
+ * 3500	
+ * 4000	
  * 
+ * Updates need to flow at 0.1s, hence to maintain accuracy there needs to be a buffer of 20
+ * readings from which the RPM can be measured.
  */ 
 
 void EngineMonitor::readFlywheelRPM() {
-  // engineHours (0 RPM == engine off)
-  // load, when drive engaged, relative to RPM
-  // torque, when drive engated, relative to RPM.
   // flyWheelRPM
-  // RPM maintains a count of the number of pulses since last read.
-  unsigned long readTime = millis();
-  unsigned long edges = readEdges(RPM_COUNTER_CH);
+  // this method is called frequently, so dont do too much in here.
+  // store the current reading
+  // since there is no guarentee that the method will be called precisely at the time
+  // expected the time must also be stored.
+  lastFlywheelRPMReadTime = millis();
+  rpmReadTime[rpmBufferpos] = lastFlywheelRPMReadTime;
+  rpmEdges[rpmBufferpos] = readEdges(RPM_COUNTER_CH);
+  int8_t pnow = rpmBufferpos;
+  // pos now points to the next reading which is the oldest reading.
+  rpmBufferpos=(rpmBufferpos+1)%rpmSamples;
+  // calculate the difference from the start of the circular buffer to the end of the buffer.
   // for the edges rto wrap would require the engine running at 6K RPM for 2.3y
-  unsigned long nedges = edges - lastEdges;
-  // the time will only wrap every 2.3y from device start.
-  unsigned long period = readTime - lastFlywheelRPMReadTime;
-  lastEdges = edges;
-  lastFlywheelRPMReadTime = readTime;
+  // the time will only wrap every 2.3y from device start
+  unsigned long nedges = rpmEdges[pnow] - rpmEdges[rpmBufferpos];
+  unsigned long period = rpmReadTime[pnow] - rpmReadTime[rpmBufferpos];
+
   // period is in ms
   float edgeFrequencyHz = (nedges)/(0.001*period);
   flyWheelRPM = config->engineFlywheelRPMPerHz * edgeFrequencyHz;
+  debugf("RPM  nedges=%lu  period=%lu f=%f rpm=%f \n",nedges, period, edgeFrequencyHz, flyWheelRPM);
+}
 
-  load = 0; // not available.
-  torque = 0; // not available.
+void EngineMonitor::updateEngineStatus() {
+
+  load = 0x7f; // not available.
+  torque = 0x7f; // not available.
 
   if ( !engineRunning && flyWheelRPM > 100) {
     loadEngineHours();
@@ -305,7 +331,6 @@ void EngineMonitor::readFlywheelRPM() {
     engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
-  debugf("RPM  nedges=%lu  period=%lu f=%f rpm=%f \n",nedges, period, edgeFrequencyHz, flyWheelRPM);
 }
 
 /**
@@ -393,6 +418,7 @@ void EngineMonitor::readSensors(bool debug) {
     debugf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
     debugf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
     debugf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
+    updateEngineStatus();
     readCoolant();
     readOil();
     readFuel();
@@ -516,6 +542,26 @@ float EngineMonitor::getEngineRoomTemperature() {
   return temperature[config->engineRoomTemperatureIDX];
 }
 
+bool EngineMonitor::isEngineOn() {
+  return engineOn;
+}
+
+
+unsigned long EngineMonitor::getRapidEngineUpdatePeriod() {
+  return config->rapidEngineUpdatePeriod;
+}
+unsigned long EngineMonitor::getEngineUpdatePeriod() {
+  return config->engineUpdatePeriod;
+}
+unsigned long EngineMonitor::getTemperatureUpdatePeriod() {
+  return config->temperatureUpdatePeriod;
+}
+unsigned long EngineMonitor::getVoltageUpdatePeriod() {
+  return config->voltageUpdatePeriod;
+}
+unsigned long EngineMonitor::getEnvironmentUpdatePeriod() {
+  return config->environmentUpdatePeriod;
+}
 
 
 
@@ -523,6 +569,11 @@ float EngineMonitor::getEngineRoomTemperature() {
 
 void EngineMonitor::calibrate(EngineMonitorConfig * _config) {
   config = _config;
+  rpmSamples = 2000/config->flywheelRPMReadPeriod;
+  if ( rpmSamples > MAX_RPM_SAMPLES ) {
+    rpmSamples = MAX_RPM_SAMPLES;
+  }
+
 }
 
 

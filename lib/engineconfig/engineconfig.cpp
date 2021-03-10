@@ -27,7 +27,9 @@ static const char * engineconfig_commands[] = {
     "oil pressure ",
     "flc ",
     "fuel level ",
-    "status"
+    "status",
+    "upd",
+    "update period "
 };
 
 
@@ -67,6 +69,13 @@ void EngineConfig::help() {
     io->println("opc|oil pressure  <o>, <s>           - set oil pressure offset and scale, floatx2, defult 0.5,50");
     io->println("flc|fuel level  <v>,<r1>,<re>,<rf>   - set fuel level r1, voltage, rempty, rfull, floatx4, defult 5,545,190,3");
     io->println("status                               - output current status.");
+    io->println("upd|update period <t>,<ms>           - PGN Update periods t = PGN, ms = period in ms");
+    io->println("                                     - 127488 = engine rapid update");
+    io->println("                                     - 127489 = engine dynamic params");
+    io->println("                                     - 130312 = temperature");
+    io->println("                                     - 127508 = battery");
+    io->println("                                     - 130311 = environment");
+
 
 
 
@@ -131,6 +140,10 @@ int8_t EngineConfig::docmd(const char * command) {
             break;
         case CMD_STATUS:
             // handled by callback
+            break;
+        case CMD_UPD_S:
+        case CMD_UPD_L:
+            setUpdatePeriod(data);
             break;
 
         default:
@@ -233,7 +246,49 @@ void EngineConfig::dump() {
         sprintf(buffer," %d, %f", i*10,  config->coolantTempR2[i]);
         io->println(buffer);
     }
+    sprintf(buffer,"PGN 127488 Rapid Engine Params, update period %ul ms", config->rapidEngineUpdatePeriod);
+    io->println(buffer);
+    sprintf(buffer,"PGN 127489 Dynamic Engine Params, update period %ul ms", config->engineUpdatePeriod);
+    io->println(buffer);
+    sprintf(buffer,"PGN 130312 Temperatures, update period %ul ms", config->temperatureUpdatePeriod);
+    io->println(buffer);
+    sprintf(buffer,"PGN 127508 Battery, update period %ul ms", config->voltageUpdatePeriod);
+    io->println(buffer);
+    sprintf(buffer,"PGN 130311 Environment, update period %ul ms", config->environmentUpdatePeriod);
+    io->println(buffer);
 }
+
+void EngineConfig::setUpdatePeriod(const char * data) {
+    unsigned long fields[2];
+    int nfields = loadUnsignedLongTable(data, 2, &fields[0]);
+    if ( nfields == 2) {
+        switch(fields[0]) {
+            case 127488:
+                config->rapidEngineUpdatePeriod = fields[1];
+                break;
+            case 127489:
+                config->engineUpdatePeriod = fields[1];
+                break;
+            case 130312:
+                config->temperatureUpdatePeriod = fields[1];
+                break;
+            case 127508:
+                config->voltageUpdatePeriod = fields[1];
+                break;
+            case 130311:
+                config->environmentUpdatePeriod = fields[1];
+                break;
+            default:
+                io->println("PGN Not recognised");
+                break;
+        }
+    } else {
+        io->println("Incorrect number of values supplied.");
+    }
+}
+
+
+
 
 
 void EngineConfig::setEngineTempBridge(const char * data){ 
@@ -351,6 +406,30 @@ int EngineConfig::loadLongTable(const char * data, int size, int16_t * table) {
     while(n < size && pstart != NULL && *(pstart) != '\0' ) {
         pend = NULL;
         int16_t d = strtol(pstart, &(pend), 10);
+        while ( *pend == ',' || *pend == ' ') {
+            pend++;
+            if ( *pend == '\0' ) {
+                break;
+            }
+        }
+        if ( pend != NULL ) {
+            
+           table[n] = d;
+            n++;
+        }
+        pstart = pend; 
+    }
+    return n;
+}
+
+int EngineConfig::loadUnsignedLongTable(const char * data, int size, unsigned long * table) {
+    char * pstart = (char *)data;
+    char * pend = NULL;
+    int n = 0;
+
+    while(n < size && pstart != NULL && *(pstart) != '\0' ) {
+        pend = NULL;
+        unsigned long d = strtoul(pstart, &(pend), 10);
         while ( *pend == ',' || *pend == ' ') {
             pend++;
             if ( *pend == '\0' ) {

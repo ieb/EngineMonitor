@@ -89,6 +89,7 @@ class Jdy40 {
 #define MAX_ENGINE_TEMP 13
 #define MAX_ONE_WIRE_SENSORS 4
 #define MAX_RF_DEVICES 10
+#define MAX_RPM_SAMPLES 20
 #define STORAGE_NAMESPACE  "EngineConfig"
 #define STORAGE_KEY "cf11" // config version 10, keynames need to be:
 #define ENGINE_HOURS_KEY "eh"
@@ -98,11 +99,15 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     int8_t alternatorTemperatureIDX; // index fo the alternator 1Wire sensor
     int8_t exhaustTemperatureIDX; // etc
     int8_t engineRoomTemperatureIDX;
-
     int16_t flywheelRPMReadPeriod;
     int16_t engineTemperatureReadPeriod;
     int16_t voltageReadPeriod;
     int16_t temperatureReadPeriod;
+    uint16_t rapidEngineUpdatePeriod;
+    uint16_t engineUpdatePeriod;
+    uint16_t temperatureUpdatePeriod;
+    uint16_t voltageUpdatePeriod;
+    uint16_t environmentUpdatePeriod;
     float oilPressureScale;
     float oilPressureOffset;
     float fuelLevelVin;
@@ -124,6 +129,7 @@ class EngineMonitor {
       void calibrate(EngineMonitorConfig * config);
       void readSensors(bool debug);
       void begin();
+      bool isEngineOn();
 
       int8_t getLoad(); 
       int8_t getTorque();
@@ -143,6 +149,13 @@ class EngineMonitor {
       float getAlternatorTemperature();
       float getExhaustTemperature();
       float getEngineRoomTemperature();
+
+      unsigned long getRapidEngineUpdatePeriod();
+      unsigned long getEngineUpdatePeriod();
+      unsigned long getTemperatureUpdatePeriod();
+      unsigned long getVoltageUpdatePeriod();
+      unsigned long getEnvironmentUpdatePeriod();
+
     private:
       void readCoolant();
       void readOil();
@@ -151,15 +164,18 @@ class EngineMonitor {
       void readFlywheelRPM();
       float saveEngineHours();
       void loadEngineHours();
+      void updateEngineStatus();
       float getBridgeSensorResistance(float v, float vin, float r1, float r3, float r4);
       int maxActiveDevice = 0;
-      unsigned long lastEdges = 0;
-      unsigned long lastFlywheelRPMReadTime = 0;
+      int8_t rpmSamples = MAX_RPM_SAMPLES;
+      int8_t rpmBufferpos = 0;
       unsigned long lastEngineTemperatureReadTime = 0;
+      unsigned long lastFlywheelRPMReadTime = 0;
       unsigned long lastVoltageReadTime = 0;
       unsigned long lastTemperatureReadTime = 0;
       bool engineRunning = false;
       bool debugOutput = false;
+      bool engineOn = false;
       unsigned long engineStarted = 0;
       float engineHoursPrevious = 0.0;
       uint16_t status1 = 0;
@@ -176,6 +192,9 @@ class EngineMonitor {
       float oilPressure = -1e9; // N2K NA
       float temperature[MAX_ONE_WIRE_SENSORS];
       DeviceAddress tempDevices[MAX_ONE_WIRE_SENSORS];
+      unsigned long rpmEdges[MAX_RPM_SAMPLES];
+      unsigned long rpmReadTime[MAX_RPM_SAMPLES];
+
       Adafruit_ADS1115 adc;
       DallasTemperature tempSensors;
       EngineMonitorConfig *config;

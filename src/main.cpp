@@ -34,15 +34,23 @@ BluetoothSerial SerialBT;
 #define SerialIO Serial
 #endif
 
-
-const unsigned long TransmitMessages[] PROGMEM={
-  130312L, // temperature
-  130311L, // environment
-  127488L, // Rapid engine
-  127489L, // Dynamic engine
-  127508L, // Battery status
-  127513L, // Battery configuration
+const unsigned long TransmitMessagesEngine[] PROGMEM={
+  127488L, // Rapid engine ideally 0.1s
+  127489L, // Dynamic engine 0.5s
+  127505L, // Battery status 2.5s
+  130316L, // Extended Temperature 2.5s
   0};
+const unsigned long TransmitMessagesTemperature[] PROGMEM={
+  130312L, // temperature
+  0};
+const unsigned long TransmitMessagesAtmospheric[] PROGMEM={
+  130311L, // environment
+  0};
+const unsigned long TransmitMessagesBatteries[] PROGMEM={
+  127508L, // Battery status 5s
+  0};
+
+
 
 
 OneWire oneWire(ONEWIRE_PIN);
@@ -53,6 +61,12 @@ bool hasBMP280 = true;
 
 #define INPUT_BUFFER_SIZE 1024
 char inputBuffer[INPUT_BUFFER_SIZE];
+
+
+#define NMEA2000_DEV_ENGINE      0
+#define NMEA2000_DEV_TEMPERATURE 1
+#define NMEA2000_DEV_ATMOSPHERIC 2
+#define NMEA2000_DEV_BATTERIES   3
 
 
 void setup() {
@@ -92,20 +106,79 @@ void setup() {
 
   Serial.println("Starting NMEA2000");
 
+  NMEA2000.SetDeviceCount(4);
+
   // Setup NMEA2000
   // Set Product information
   NMEA2000.SetProductInformation("00000003", // Manufacturer's Model serial code
                                  100, // Manufacturer's product code
                                  "Engine Monitor",  // Manufacturer's Model ID
                                  "1.1.0.22 (2021-02-10)",  // Manufacturer's Software version code
-                                 "1.1.0.0 (2021-02-10)" // Manufacturer's Model version
+                                 "1.1.0.0 (2021-02-10)", // Manufacturer's Model version
+                                 0xff, // load equivalency - use default
+                                 0xffff, // NMEA 2000 version - use default
+                                 0xff, // Sertification level - use default
+                                 NMEA2000_DEV_ENGINE
+                                 );
+  NMEA2000.SetProductInformation("00000004", // Manufacturer's Model serial code
+                                 100, // Manufacturer's product code
+                                 "Temperature Monitor",  // Manufacturer's Model ID
+                                 "1.1.0.22 (2021-02-10)",  // Manufacturer's Software version code
+                                 "1.1.0.0 (2021-02-10)", // Manufacturer's Model version
+                                 0xff, // load equivalency - use default
+                                 0xffff, // NMEA 2000 version - use default
+                                 0xff, // Sertification level - use default
+                                 NMEA2000_DEV_TEMPERATURE
+                                 );
+  NMEA2000.SetProductInformation("00000005", // Manufacturer's Model serial code
+                                 100, // Manufacturer's product code
+                                 "Environment Monitor",  // Manufacturer's Model ID
+                                 "1.1.0.22 (2021-02-10)",  // Manufacturer's Software version code
+                                 "1.1.0.0 (2021-02-10)", // Manufacturer's Model version
+                                 0xff, // load equivalency - use default
+                                 0xffff, // NMEA 2000 version - use default
+                                 0xff, // Sertification level - use default
+                                 NMEA2000_DEV_ATMOSPHERIC
+                                 );
+  NMEA2000.SetProductInformation("00000006", // Manufacturer's Model serial code
+                                 100, // Manufacturer's product code
+                                 "Battery Monitor",  // Manufacturer's Model ID
+                                 "1.1.0.22 (2021-02-10)",  // Manufacturer's Software version code
+                                 "1.1.0.0 (2021-02-10)", // Manufacturer's Model version
+                                 0xff, // load equivalency - use default
+                                 0xffff, // NMEA 2000 version - use default
+                                 0xff, // Sertification level - use default
+                                 NMEA2000_DEV_BATTERIES
                                  );
   // Set device information
-  NMEA2000.SetDeviceInformation(2, // Unique number. Use e.g. Serial number.
+  NMEA2000.SetDeviceInformation(3, // Unique number. Use e.g. Serial number.
                                 160, // Device function=Engine Gateway. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
                                 50, // Device class=Propulsion. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
-                                2085 // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
-                               );
+                                2085, // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
+                                4, // Marine
+                                NMEA2000_DEV_ENGINE
+                                );
+  NMEA2000.SetDeviceInformation(4, // Unique number. Use e.g. Serial number.
+                                130, // Device function=Engine Gateway. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                75, // Device class=Propulsion. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                2085, // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
+                                4, // Marine
+                                NMEA2000_DEV_TEMPERATURE
+                                );
+  NMEA2000.SetDeviceInformation(5, // Unique number. Use e.g. Serial number.
+                                130, // Device function=Engine Gateway. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                85, // Device class=Propulsion. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                2085, // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
+                                4, // Marine
+                                NMEA2000_DEV_ATMOSPHERIC
+                                );
+  NMEA2000.SetDeviceInformation(5, // Unique number. Use e.g. Serial number.
+                                170, // Device function=Engine Gateway. See codes on http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                35, // Device class=Propulsion. See codes on  http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf
+                                2085, // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
+                                4, // Marine
+                                NMEA2000_DEV_BATTERIES
+                                );
 
   // debugging with no chips connected.
 #ifdef DEBUG_NMEA2000
@@ -118,7 +191,10 @@ void setup() {
   // this is a node, we are not that interested in other traffic on the bus.
   NMEA2000.SetMode(tNMEA2000::N2km_NodeOnly,23);
   NMEA2000.EnableForward(false);
-  NMEA2000.ExtendTransmitMessages(TransmitMessages);
+  NMEA2000.ExtendTransmitMessages(TransmitMessagesEngine,NMEA2000_DEV_ENGINE);
+  NMEA2000.ExtendTransmitMessages(TransmitMessagesTemperature,NMEA2000_DEV_TEMPERATURE);
+  NMEA2000.ExtendTransmitMessages(TransmitMessagesAtmospheric,NMEA2000_DEV_ATMOSPHERIC);
+  NMEA2000.ExtendTransmitMessages(TransmitMessagesBatteries,NMEA2000_DEV_BATTERIES);
   NMEA2000.Open();
 
   
@@ -129,41 +205,29 @@ void setup() {
 
 // todo, configuration.
 
-#define RapidEngineUpdatePeriod 1000
-#define EngineUpdatePeriod 3000
-#define TemperatureUpdatePeriod 30000
-#define VoltageUpdatePeriod 5000
-#define EnvironmentUpdatePeriod 60000
 
-void SendRapidEnginData() {
-  static int8_t stopping = 5;
+void SendRapidEngineData() {
   static unsigned long RapidEngineUpdated=millis();
   tN2kMsg N2kMsg;
-
-  if ( RapidEngineUpdated+RapidEngineUpdatePeriod<millis() ) {
+  unsigned long period = engineMonitor.getRapidEngineUpdatePeriod();
+  if ( period != 0 && RapidEngineUpdated+period<millis() ) {
     double rpm = engineMonitor.getFlyWheelRPM();
     if ( engineConfig.isMonitoringEnabled() ) {
       SerialIO.printf("RPM %f\n",rpm);
     }
-    if ( rpm > 0 ) {
-      stopping = 5;
-    } else if ( stopping > 0 ) {
-      stopping--;
-    }
-    if (stopping > 0) {
-      // PGN127488
-      SetN2kEngineParamRapid(N2kMsg, 1, rpm);
-      NMEA2000.SendMsg(N2kMsg);
-    }
+    // PGN127488
+    SetN2kEngineParamRapid(N2kMsg, 0, rpm);
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
     RapidEngineUpdated = millis();
   }
 }
 
-void SendEnginData() {
+void SendEngineData() {
   static unsigned long EngineUpdated=millis();
   tN2kMsg N2kMsg;
 
-  if ( EngineUpdated+EngineUpdatePeriod<millis() ) {
+  unsigned long period = engineMonitor.getEngineUpdatePeriod();
+  if ( period != 0 && EngineUpdated+period<millis() ) {
     // PGN127489
     double temperature = engineMonitor.getCoolantTemperature();
     double alternatorVoltage = engineMonitor.getAlternatorVoltage();
@@ -192,10 +256,10 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
                        int8_t EngineLoad=N2kInt8NA, int8_t EngineTorque=N2kInt8NA,
                        tN2kEngineDiscreteStatus1 Status1=0, tN2kEngineDiscreteStatus2 Status2=0) {
                          */
-    SetN2kEngineDynamicParam(N2kMsg, 1, oilPressure, CToKelvin(oilTemperature), CToKelvin(temperature), alternatorVoltage,
+    SetN2kEngineDynamicParam(N2kMsg, 0, oilPressure, CToKelvin(oilTemperature), CToKelvin(temperature), alternatorVoltage,
                        fuelRate, engineHours, coolantPressure, fuelPressure, load, torque, status1, status2);
 
-    NMEA2000.SendMsg(N2kMsg);
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
     EngineUpdated=millis();
 
   }
@@ -207,19 +271,20 @@ void SendTemperatureData() {
   static unsigned long TemperatureUpdated=millis();
   tN2kMsg N2kMsg;
 
-  if ( TemperatureUpdated+TemperatureUpdatePeriod<millis() ) {
+  unsigned long period = engineMonitor.getTemperatureUpdatePeriod();
+  if ( period != 0 && TemperatureUpdated+period<millis() ) {
     // PGN130312
     if ( engineConfig.isMonitoringEnabled() ) {
       SerialIO.printf("Temperature er=%f, eg=%f, at=%f\n",
         engineMonitor.getEngineRoomTemperature(), engineMonitor.getExhaustTemperature(), engineMonitor.getAlternatorTemperature());
     }
 
-    SetN2kTemperature(N2kMsg, 1, 1, N2kts_EngineRoomTemperature, CToKelvin(engineMonitor.getEngineRoomTemperature()));
-    NMEA2000.SendMsg(N2kMsg);
-    SetN2kTemperature(N2kMsg, 2, 2, N2kts_ExhaustGasTemperature, CToKelvin(engineMonitor.getExhaustTemperature()));
-    NMEA2000.SendMsg(N2kMsg);
-    SetN2kTemperature(N2kMsg, 3, 3, N2kts_LiveWellTemperature, CToKelvin(engineMonitor.getAlternatorTemperature()));
-    NMEA2000.SendMsg(N2kMsg);
+    SetN2kTemperature(N2kMsg, 0, 0, N2kts_EngineRoomTemperature, CToKelvin(engineMonitor.getEngineRoomTemperature()));
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_TEMPERATURE);
+    SetN2kTemperature(N2kMsg, 1, 1, N2kts_ExhaustGasTemperature, CToKelvin(engineMonitor.getExhaustTemperature()));
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_TEMPERATURE);
+    SetN2kTemperature(N2kMsg, 2, 2, N2kts_LiveWellTemperature, CToKelvin(engineMonitor.getAlternatorTemperature()));
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_TEMPERATURE);
     TemperatureUpdated=millis();
   }
 }
@@ -229,7 +294,8 @@ void SendVoltages() {
   static unsigned long VoltageUpdated=millis();
   tN2kMsg N2kMsg;
 
-  if ( VoltageUpdated+VoltageUpdatePeriod<millis() ) {
+  unsigned long period = engineMonitor.getVoltageUpdatePeriod();
+  if ( period != 0 && VoltageUpdated+period<millis() ) {
 
     // Battery Status PGN127508
     if ( engineConfig.isMonitoringEnabled() ) {
@@ -237,19 +303,19 @@ void SendVoltages() {
         12.6,12.6, engineMonitor.getAlternatorVoltage());
     }
     
-    SetN2kDCBatStatus(N2kMsg,1, 12.6, N2kDoubleNA, N2kDoubleNA, 1);
-    NMEA2000.SendMsg(N2kMsg);
-    SetN2kDCBatStatus(N2kMsg,2, 12.6, N2kDoubleNA, N2kDoubleNA, 2);
-    NMEA2000.SendMsg(N2kMsg);
+    SetN2kDCBatStatus(N2kMsg,0, 12.6, N2kDoubleNA, N2kDoubleNA, 0);
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
+    SetN2kDCBatStatus(N2kMsg,1, 12.8, N2kDoubleNA, N2kDoubleNA, 1);
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
     // send the Alternator information as if it was a 3rd battery, becuase there is no other way.
-    SetN2kDCBatStatus(N2kMsg,3, engineMonitor.getAlternatorVoltage(), N2kDoubleNA, CToKelvin(engineMonitor.getAlternatorTemperature()), 3);
-    NMEA2000.SendMsg(N2kMsg);
+    SetN2kDCBatStatus(N2kMsg,2, engineMonitor.getAlternatorVoltage(), N2kDoubleNA, CToKelvin(engineMonitor.getAlternatorTemperature()), 2);
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
 
     // Battery Configuration PGN127513
-    SetN2kBatConf(N2kMsg,1,N2kDCbt_Flooded,N2kDCES_Unavailable,N2kDCbnv_12v,N2kDCbc_LeadAcid,AhToCoulomb(55),53,1.251,75);
-    NMEA2000.SendMsg(N2kMsg);
-    SetN2kBatConf(N2kMsg,2,N2kDCbt_AGM,N2kDCES_Unavailable,N2kDCbnv_12v,N2kDCbc_LeadAcid,AhToCoulomb(330),53,1.251,75);
-    NMEA2000.SendMsg(N2kMsg);
+//    SetN2kBatConf(N2kMsg,1,N2kDCbt_Flooded,N2kDCES_Unavailable,N2kDCbnv_12v,N2kDCbc_LeadAcid,AhToCoulomb(55),53,1.251,75);
+//    NMEA2000.SendMsg(N2kMsg);
+//    SetN2kBatConf(N2kMsg,2,N2kDCbt_AGM,N2kDCES_Unavailable,N2kDCbnv_12v,N2kDCbc_LeadAcid,AhToCoulomb(330),53,1.251,75);
+//    NMEA2000.SendMsg(N2kMsg);
     VoltageUpdated=millis();
   }
 }
@@ -261,7 +327,8 @@ void SendEnvironment() {
 
     tN2kMsg N2kMsg;
 
-    if ( EnvironmentUpdated+EnvironmentUpdatePeriod<millis() ) {
+  unsigned long period = engineMonitor.getEnvironmentUpdatePeriod();
+  if ( period != 0 && EnvironmentUpdated+period<millis() ) {
 
       double temperature = bmp.readTemperature();
       double pressure =  bmp.readPressure();
@@ -275,7 +342,7 @@ void SendEnvironment() {
       SetN2kEnvironmentalParameters(N2kMsg,4,
         tN2kTempSource::N2kts_InsideTemperature,
         CToKelvin(temperature),N2khs_Undef,N2kDoubleNA,pressure);
-      NMEA2000.SendMsg(N2kMsg);
+      NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ATMOSPHERIC);
 
       EnvironmentUpdated=millis();
       
@@ -322,9 +389,10 @@ void loop() {
   engineConfig.process(CallBack);
   engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
   // Send to N2K Bus
-
-  SendRapidEnginData();
-  SendEnginData();
+  if ( engineMonitor.isEngineOn() ) {
+    SendRapidEngineData();
+    SendEngineData();
+  }
   SendTemperatureData();
   SendVoltages();
   SendEnvironment();
