@@ -15,6 +15,8 @@
 #define DATAEN_PIN GPIO_NUM_4 
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
+#define BT_INDICATOR_PIN GPIO_NUM_2
+#define BT_ENABLE_PIN GPIO_PIN_25 // needs checking this can be used.
 
 
 #include <NMEA2000_esp32.h>
@@ -69,11 +71,38 @@ char inputBuffer[INPUT_BUFFER_SIZE];
 #define NMEA2000_DEV_BATTERIES   3
 
 
+int blueToothRunning = false;
+
+void StopBlueTooth() {
+#ifdef BLUETOOTHCLASSIC      
+  if ( !blueToothRunning ) {
+    SerialBT.end();
+    digitalWrite(BT_INDICATOR_PIN, LOW); 
+    blueToothRunning = false;
+  }
+#endif
+}
+
+void CheckBlueTooth() {
+#ifdef BLUETOOTHCLASSIC      
+  if ( !blueToothRunning ) {
+    if ( digitalRead(BT_ENBABLE_PIN) == LOW ) {
+      SerialBT.begin("EngineMonitor"); 
+      blueToothRunning = true;
+      digitalWrite(BT_INDICATOR_PIN, HIGH); 
+    }
+  }
+#endif
+}
+
 void setup() {
 
   
-#ifdef BLUETOOTHCLASSIC                               
-  SerialBT.begin("EngineMonitor"); 
+#ifdef BLUETOOTHCLASSIC  
+  pinMode(BT_ENABLE_PIN, INPUT_PULLUP); 
+  pinMode(BT_INDICATOR_PIN, OUTPUT);
+  digitalWrite(BT_INDICATOR_PIN, LOW); 
+  CheckBlueTooth();
 #else 
   Serial.begin(115200);
 #endif
@@ -327,16 +356,16 @@ void SendEnvironment() {
 
     tN2kMsg N2kMsg;
 
-  unsigned long period = engineMonitor.getEnvironmentUpdatePeriod();
-  if ( period != 0 && EnvironmentUpdated+period<millis() ) {
+    unsigned long period = engineMonitor.getEnvironmentUpdatePeriod();
+    if ( period != 0 && EnvironmentUpdated+period<millis() ) {
 
-      double temperature = bmp.readTemperature();
-      double pressure =  bmp.readPressure();
+        double temperature = bmp.readTemperature();
+        double pressure =  bmp.readPressure();
 
-    if ( engineConfig.isMonitoringEnabled() ) {
-      SerialIO.printf("Environment t=%f, p=%f\n",
-        temperature, pressure);
-    }
+      if ( engineConfig.isMonitoringEnabled() ) {
+        SerialIO.printf("Environment t=%f, p=%f\n",
+          temperature, pressure);
+      }
 
       // PGN130311
       SetN2kEnvironmentalParameters(N2kMsg,4,
@@ -345,14 +374,16 @@ void SendEnvironment() {
       NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ATMOSPHERIC);
 
       EnvironmentUpdated=millis();
-      
+        
     }
   }
 
 }
 
 void DumpStatus() {
-    SerialIO.printf("RPM                     = %f\n",engineMonitor.getFlyWheelRPM());
+    SerialIO.printf("Engine Powered up       = %d\n", engineMonitor.isEngineOn());
+    SerialIO.printf("Engine Running          = %d\n", engineMonitor.isEngineRunning());
+    SerialIO.printf("RPM                     = %f\n", engineMonitor.getFlyWheelRPM());
     SerialIO.printf("Coolant Temperature     = %f\n", engineMonitor.getCoolantTemperature());
     SerialIO.printf("Alternator Voltage      = %f\n", engineMonitor.getAlternatorVoltage());
     SerialIO.printf("Oil Pressure            = %f\n", engineMonitor.getOilPressure());
@@ -378,14 +409,19 @@ void CallBack(int8_t cmd) {
     case CMD_STATUS:
       DumpStatus();
       break;
+    case CMD_BT_OFF:
+      StopBlueTooth();
+      break;
   }
 }
 
 
 
 
+
 void loop() {
   // read the serial data and process.
+  CheckBluetooth();
   engineConfig.process(CallBack);
   engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
   // Send to N2K Bus

@@ -250,8 +250,8 @@ void EngineMonitor::readCoolant() {
   // engineCoolantTemperature
   adc.setGain(GAIN_FOUR);
   uint16_t vi = adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC);
-  float adc1 = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
-  float r2 = getBridgeSensorResistance(adc1, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
+  coolantVoltage = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
+  float r2 = getBridgeSensorResistance(coolantVoltage, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
   if ( r2 > config->coolantTempR2[0] ) {
     // below 0, assume straight line extending below 0-10C
     engineCoolantTemperature = 10.0*((config->coolantTempR2[0]-r2)/
@@ -263,7 +263,7 @@ void EngineMonitor::readCoolant() {
         engineCoolantTemperature = (10.0*(i-1))+
            10.0*((config->coolantTempR2[i-1]-r2)/
                  (config->coolantTempR2[i-1]-config->coolantTempR2[i]));
-        debugf("Coolant  v=%f  r2=%f t=%f \n",adc1, r2,engineCoolantTemperature);
+        debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
         return;
       }
     }
@@ -272,7 +272,7 @@ void EngineMonitor::readCoolant() {
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
   }
-    debugf("Coolant  v=%f  r2=%f t=%f \n",adc1, r2,engineCoolantTemperature);
+    debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
 }
 
 
@@ -320,9 +320,20 @@ void EngineMonitor::readFlywheelRPM() {
 
 void EngineMonitor::updateEngineStatus() {
 
+  // if the alternator voltage or the coolantVoltage 
+  // has a non zero voltage the engine is powered up.
+  // need to check that the alternatorVoltage is not on all the time since
+  // that is connected via the A2B charger.
+  if ( coolantVoltage > 0.1 || alternatorVoltage > 5.0 ) {
+    engineOn = true;
+  } else {
+    engineOn = false;
+  }
+
   load = 0x7f; // not available.
   torque = 0x7f; // not available.
 
+  // if the rpm is non zero the engine is running.
   if ( !engineRunning && flyWheelRPM > 100) {
     loadEngineHours();
     engineStarted = millis();
@@ -544,6 +555,10 @@ float EngineMonitor::getEngineRoomTemperature() {
 
 bool EngineMonitor::isEngineOn() {
   return engineOn;
+}
+
+bool EngineMonitor::isEngineRunning() {
+  return engineRunning;
 }
 
 

@@ -130,6 +130,7 @@ class EngineMonitor {
       void readSensors(bool debug);
       void begin();
       bool isEngineOn();
+      bool isEngineRunning();
 
       int8_t getLoad(); 
       int8_t getTorque();
@@ -183,6 +184,7 @@ class EngineMonitor {
       int8_t load = 0;
       int8_t torque = 0;
       float alternatorVoltage = 0.0;
+      float coolantVoltage = 0.0;
       float engineCoolantTemperature = 0.0;
       float flyWheelRPM = 0.0;
       float fuelPressure = -1e9; // N2K NA

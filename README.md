@@ -199,8 +199,8 @@ Obviously it is not ideal to bench test with a real engine so its mocked up usin
 * [?] Fix: potential fix of 8 unkown status messages from the device, possibly caused by using 1 device for all messages.
 * [x] make device message period configurable
 * [x] Shorten rpm send and sample period without loosing precision, currently sampling at 2s, needs to send at 0.2s
-* [ ] Fix engine on detection.
-* [ ] Support Bluetooth enable button
+* [x] Fix engine on detection.
+* [x] Support Bluetooth enable button
 * [ ] Check 1-wire temperature sensors
 * [x] Coolant Temperature conversion
 * [x] Alternator pulse verified
