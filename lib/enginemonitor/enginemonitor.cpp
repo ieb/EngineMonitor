@@ -22,7 +22,7 @@
 #define RPM_COUNTER_CH 0
 #define COOLANT_TEMPERATURE_ADC 0
 #define ALTERNATOR_VOLTAGE_ADC 1
-#define OIL_PRESSURE_ADC 2
+#define SERVICE_BATTERY_VOLTAGE_ADC 2
 #define FUEL_LEVEL_ADC 3
 
 
@@ -30,7 +30,7 @@
 #define ADC_V_GAIN_TWO  0.0000625  // 2.048
 #define ADC_V_GAIN_ONE  0.000125  // 4.096
 #define ALTERNATOR_VOLTAGE_SCALE  5.5272  // (9960+2200)/(2200)
-#define OIL_VOLTAGE_SCALE  5.5479 // (9960+2190)/(2190)
+#define SERVICE_BATTERY_VOLTAGE_SCALE  5.5479 // (9960+2190)/(2190)
 // measured values on board
 #define COOLANT_TEMPERATURE_R3 9940
 #define COOLANT_TEMPERATURE_R4 2200
@@ -77,6 +77,7 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .alternatorTemperatureIDX = 0,
     .exhaustTemperatureIDX = 1,
     .engineRoomTemperatureIDX = 2,
+    .serviceBatteryTemperatureIDX = 3,
     .flywheelRPMReadPeriod = 100,
     .engineTemperatureReadPeriod = 5000,
     .voltageReadPeriod = 10000,
@@ -86,12 +87,10 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .temperatureUpdatePeriod = 10000,
     .voltageUpdatePeriod = 5000,
     .environmentUpdatePeriod = 60000,
-    .oilPressureScale = 50,  // 0.5V = 0PSI, 4.5V = 200, scale=200/(4.5-0.5)
-    .oilPressureOffset = 0.5,
     .fuelLevelVin = 5.0,
-    .fuelLevelR1 = 545.5,
-    .fuelLevelEmptyR = 190,
-    .fuelLevelFullR = 3,
+    .fuelLevelR1 = 220.0,
+    .fuelLevelEmptyR = 0,
+    .fuelLevelFullR = 190,
     .engineFlywheelRPMPerHz = 6.224463028,
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
@@ -145,11 +144,22 @@ void EngineMonitor::begin() {
   }
   adc.begin();
   tempSensors.begin();
+  tempSensors.setWaitForConversion(false);
   for(int i = 0; i < MAX_ONE_WIRE_SENSORS; i++) {
     temperature[i] = 0;
     if (tempSensors.getAddress(tempDevices[i], i)) {
+      debugStream->print("Got Temperature Sensor ");
+      debugStream->print(i);
+      debugStream->print(" ");
+      for (int j = 0; j < 8; j++) {
+        debugStream->print(tempDevices[i][j],HEX);
+      }
+      debugStream->println(" ");
       maxActiveDevice = i+1;
-    } 
+    } else {
+      debugStream->print("No Temperature sensor ");
+      debugStream->println(i);
+    }
   }
 }
 
@@ -330,9 +340,6 @@ void EngineMonitor::updateEngineStatus() {
     engineOn = false;
   }
 
-  load = 0x7f; // not available.
-  torque = 0x7f; // not available.
-
   // if the rpm is non zero the engine is running.
   if ( !engineRunning && flyWheelRPM > 100) {
     loadEngineHours();
@@ -344,29 +351,7 @@ void EngineMonitor::updateEngineStatus() {
   }
 }
 
-/**
- *   5V sensor -> 
- *   0.5V - 4.5V <- sensor signal
- *   oilPresureOffset = 0.5
- *   oilPressureScale = 200/(4.5-0.5) = 50
- */
 
-void EngineMonitor::readOil() {
-   // read an oil pressure sensor, most are linear 0.5 = 0PSI 4.5 = 200PSI, 5V supply
-  // oilPressure, needs sensor
-  adc.setGain(GAIN_ONE);
-  float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(OIL_PRESSURE_ADC);
-  oilPressure = config->oilPressureScale*((OIL_VOLTAGE_SCALE * (v))-config->oilPressureOffset);
-  debugf("Oil Pressure v=%f op=%f \n",v, oilPressure);
-}
-
-void EngineMonitor::readFuel() {
-  //fuelRate, when the drive is engaged, this is relative to RPM, measuring fuel flow accurately is hard without a ECU.
-  //fuelPressure, same as engine room pressure before injection
-  // could measure post pump, pre-injection pressures.
-  fuelRate = -1e9;
-  fuelPressure = -1e9;
-}
 
 /**
  *   Circuit is 
@@ -406,7 +391,7 @@ void EngineMonitor::readFuelTank() {
   fuelTankLevel = rawFuelTankLevel;
   if ( fuelTankLevel < 0.0) {
     fuelTankLevel = 0.0;
-  } else {
+  } else if ( fuelTankLevel > 100.0 ) {
     fuelTankLevel = 100.0;
   }
   debugf("Fuel Tank v=%f r2=%f rfl=%f fl=%f \n",v, r2, rawFuelTankLevel, fuelTankLevel);
@@ -424,15 +409,12 @@ void EngineMonitor::readSensors(bool debug) {
 
   // coolant temperature
   if ( readTime >  lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod ) {
-
-
     debugf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
     debugf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
     debugf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
     updateEngineStatus();
     readCoolant();
-    readOil();
-    readFuel();
+    readFuelTank();
     saveEngineHours();
     lastEngineTemperatureReadTime = readTime;
   }
@@ -443,43 +425,36 @@ void EngineMonitor::readSensors(bool debug) {
     float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC);
     alternatorVoltage = ALTERNATOR_VOLTAGE_SCALE * (v);
     debugf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
+
+    v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(SERVICE_BATTERY_VOLTAGE_ADC);
+    serviceBatteryVoltage = SERVICE_BATTERY_VOLTAGE_SCALE * (v);
+    debugf("Service Battery Voltage v=%f va=%f \n",v, serviceBatteryVoltage);
+
     lastVoltageReadTime = readTime;
 
 
+
+  }
+  
+  if ( requestTemperaturesRequired && readTime > lastTemperatureReadTime+config->temperatureReadPeriod-5000) {
+    for (int i = 0; i < maxActiveDevice; i++) {
+      tempSensors.requestTemperaturesByAddress(tempDevices[i]);
+    }   
+    requestTemperaturesRequired = false;
   }
   if ( readTime > lastTemperatureReadTime+config->temperatureReadPeriod  ) {
     debugf("Reading External temps  %ld  %lu\n",lastTemperatureReadTime+config->temperatureReadPeriod, readTime );
-    // slow changing values.
-    readFuelTank();
     // 1 wire sensors
     for (int i = 0; i < maxActiveDevice; i++) {
       temperature[i] = tempSensors.getTempC(tempDevices[i]);
       debugf("Temperature i=%d t=%f \n",i,temperature[i]);
-
     }
+    requestTemperaturesRequired = true;
     lastTemperatureReadTime = readTime;
   }
 }
 
 
-int8_t EngineMonitor::getLoad() {
-  return load; 
-}
-int8_t EngineMonitor::getTorque() {
-  return torque; 
-}
-uint16_t EngineMonitor::getStatus1() {
-  return status1;
-} /* tN2kEngineDiscreteStatus1 */
-uint16_t EngineMonitor::getStatus2() {
-  return status2;
-} /* tN2kEngineDiscreteStatus2 */
-float EngineMonitor::getFuelPressure() {
-  return fuelPressure; 
-}
-float EngineMonitor::getCoolantPressure() {
-  return coolantPressure; 
-}
 
 float EngineMonitor::getFuelTankLevel() {
   return fuelTankLevel;
@@ -524,14 +499,8 @@ float EngineMonitor::getEngineHours() {
     return engineHoursPrevious;
   }
 }
-float EngineMonitor::getFuelRate() {
-  return fuelRate; 
-}
-float EngineMonitor::getOilPressure() {
-  return oilPressure; 
-}
-float EngineMonitor::getOilTemperature() {
-  return engineCoolantTemperature; // not very accurate, but no sensor available.
+float EngineMonitor::getServiceBatteryVoltage() {
+  return serviceBatteryVoltage;
 }
 
 float EngineMonitor::getAlternatorVoltage() {
@@ -542,6 +511,9 @@ float EngineMonitor::getFlyWheelRPM() {
 }
 float EngineMonitor::getCoolantTemperature() {
   return engineCoolantTemperature;
+}
+float EngineMonitor::getServiceBatteryTemperature() {
+  return temperature[config->serviceBatteryTemperatureIDX];
 }
 float EngineMonitor::getAlternatorTemperature() {
   return temperature[config->alternatorTemperatureIDX];

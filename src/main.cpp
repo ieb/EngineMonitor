@@ -16,7 +16,7 @@
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
 #define BT_INDICATOR_PIN GPIO_NUM_2
-#define BT_ENABLE_PIN GPIO_PIN_25 // needs checking this can be used.
+#define BT_ENABLE_PIN GPIO_NUM_25 // needs checking this can be used.
 
 
 #include <NMEA2000_esp32.h>
@@ -73,9 +73,9 @@ char inputBuffer[INPUT_BUFFER_SIZE];
 
 int blueToothRunning = false;
 
-void StopBlueTooth() {
+void StopBluetooth() {
 #ifdef BLUETOOTHCLASSIC      
-  if ( !blueToothRunning ) {
+  if ( blueToothRunning ) {
     SerialBT.end();
     digitalWrite(BT_INDICATOR_PIN, LOW); 
     blueToothRunning = false;
@@ -83,10 +83,10 @@ void StopBlueTooth() {
 #endif
 }
 
-void CheckBlueTooth() {
+void CheckBluetooth() {
 #ifdef BLUETOOTHCLASSIC      
   if ( !blueToothRunning ) {
-    if ( digitalRead(BT_ENBABLE_PIN) == LOW ) {
+    if ( digitalRead(BT_ENABLE_PIN) == LOW ) {
       SerialBT.begin("EngineMonitor"); 
       blueToothRunning = true;
       digitalWrite(BT_INDICATOR_PIN, HIGH); 
@@ -102,10 +102,10 @@ void setup() {
   pinMode(BT_ENABLE_PIN, INPUT_PULLUP); 
   pinMode(BT_INDICATOR_PIN, OUTPUT);
   digitalWrite(BT_INDICATOR_PIN, LOW); 
-  CheckBlueTooth();
+  CheckBluetooth();
 #else 
-  Serial.begin(115200);
 #endif
+  Serial.begin(115200);
 
   Wire.begin(SDA_PIN, SCL_PIN);
   Serial.println("Starting sensors");
@@ -228,7 +228,7 @@ void setup() {
 
   
 
-  SerialIO.println("running");
+  Serial.println("running, take pin 25 low to enable bluetooth");
   
 }
 
@@ -260,22 +260,11 @@ void SendEngineData() {
     // PGN127489
     double temperature = engineMonitor.getCoolantTemperature();
     double alternatorVoltage = engineMonitor.getAlternatorVoltage();
-    double oilPressure = engineMonitor.getOilPressure();
-    double oilTemperature = engineMonitor.getOilTemperature();
-    double fuelRate = engineMonitor.getFuelRate();
     double engineHours = engineMonitor.getEngineHours();
-    double coolantPressure = engineMonitor.getCoolantPressure();
-    double fuelPressure = engineMonitor.getFuelPressure();
-    int8_t load = engineMonitor.getLoad(); 
-    int8_t torque = engineMonitor.getTorque();
-    int8_t status1 = engineMonitor.getStatus1(); /* tN2kEngineDiscreteStatus1 */
-    int8_t status2 = engineMonitor.getStatus2(); /* tN2kEngineDiscreteStatus2 */
 
     if ( engineConfig.isMonitoringEnabled() ) {
-      SerialIO.printf("Engine Params1 t=%f, av=%f, op=%f, ot=%f, fr=%f, eh=%f, cp=%f, fp=%f\n",
-        temperature, alternatorVoltage, oilPressure, oilTemperature, fuelRate, engineHours, coolantPressure, fuelPressure);
-      SerialIO.printf("Engine Params2 l=%d, t=%d, s1=%d, s2=%d\n",
-        load, torque, status1, status2);
+      SerialIO.printf("Engine Params1 t=%f, av=%f, eh=%f\n",
+        temperature, alternatorVoltage, engineHours);
     }
 
     /*
@@ -285,8 +274,8 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
                        int8_t EngineLoad=N2kInt8NA, int8_t EngineTorque=N2kInt8NA,
                        tN2kEngineDiscreteStatus1 Status1=0, tN2kEngineDiscreteStatus2 Status2=0) {
                          */
-    SetN2kEngineDynamicParam(N2kMsg, 0, oilPressure, CToKelvin(oilTemperature), CToKelvin(temperature), alternatorVoltage,
-                       fuelRate, engineHours, coolantPressure, fuelPressure, load, torque, status1, status2);
+    SetN2kEngineDynamicParam(N2kMsg, 0, N2kDoubleNA, N2kDoubleNA, CToKelvin(temperature), alternatorVoltage,
+                       N2kDoubleNA, engineHours, N2kDoubleNA, N2kDoubleNA, N2kInt8NA, N2kInt8NA,0,0);
 
     NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
     EngineUpdated=millis();
@@ -328,16 +317,14 @@ void SendVoltages() {
 
     // Battery Status PGN127508
     if ( engineConfig.isMonitoringEnabled() ) {
-      SerialIO.printf("Voltages eb=%f, sb=%f, av=%f\n",
-        12.6,12.6, engineMonitor.getAlternatorVoltage());
+      SerialIO.printf("Voltages sb=%f, av=%f\n",
+        engineMonitor.getServiceBatteryVoltage(), engineMonitor.getAlternatorVoltage());
     }
     
-    SetN2kDCBatStatus(N2kMsg,0, 12.6, N2kDoubleNA, N2kDoubleNA, 0);
-    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
-    SetN2kDCBatStatus(N2kMsg,1, 12.8, N2kDoubleNA, N2kDoubleNA, 1);
+    SetN2kDCBatStatus(N2kMsg,0, engineMonitor.getServiceBatteryVoltage(), N2kDoubleNA, CToKelvin(engineMonitor.getServiceBatteryTemperature()), 0);
     NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
     // send the Alternator information as if it was a 3rd battery, becuase there is no other way.
-    SetN2kDCBatStatus(N2kMsg,2, engineMonitor.getAlternatorVoltage(), N2kDoubleNA, CToKelvin(engineMonitor.getAlternatorTemperature()), 2);
+    SetN2kDCBatStatus(N2kMsg,1, engineMonitor.getAlternatorVoltage(), N2kDoubleNA, CToKelvin(engineMonitor.getAlternatorTemperature()), 1);
     NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_BATTERIES);
 
     // Battery Configuration PGN127513
@@ -381,26 +368,21 @@ void SendEnvironment() {
 }
 
 void DumpStatus() {
+    SerialIO.printf("Has BMP280              = %d\n", hasBMP280);
     SerialIO.printf("Engine Powered up       = %d\n", engineMonitor.isEngineOn());
     SerialIO.printf("Engine Running          = %d\n", engineMonitor.isEngineRunning());
     SerialIO.printf("RPM                     = %f\n", engineMonitor.getFlyWheelRPM());
     SerialIO.printf("Coolant Temperature     = %f\n", engineMonitor.getCoolantTemperature());
+    SerialIO.printf("Fuel Tank Level     = %f\n", engineMonitor.getFuelTankLevel());
     SerialIO.printf("Alternator Voltage      = %f\n", engineMonitor.getAlternatorVoltage());
-    SerialIO.printf("Oil Pressure            = %f\n", engineMonitor.getOilPressure());
-    SerialIO.printf("Oil Temperature         = %f\n", engineMonitor.getOilTemperature());
-    SerialIO.printf("Fuel Rate               = %f\n", engineMonitor.getFuelRate());
+    SerialIO.printf("Service Battery Voltage = %f\n", engineMonitor.getServiceBatteryVoltage());
     SerialIO.printf("Engine Hours            = %f\n", engineMonitor.getEngineHours());
-    SerialIO.printf("Coolant Pressure        = %f\n", engineMonitor.getCoolantPressure());
-    SerialIO.printf("Fuel Pressure           = %f\n", engineMonitor.getFuelPressure());
-    SerialIO.printf("Load                    = %d\n", engineMonitor.getLoad());
-    SerialIO.printf("Tourque                 = %d\n", engineMonitor.getTorque());
-    SerialIO.printf("Status1                 = %d\n", engineMonitor.getStatus1()); /* tN2kEngineDiscreteStatus1 */
-    SerialIO.printf("Status2                 = %d\n", engineMonitor.getStatus2());/* tN2kEngineDiscreteStatus2 */
     SerialIO.printf("Engine Room Temperature = %f\n", engineMonitor.getEngineRoomTemperature());
     SerialIO.printf("Exhaust Temperature     = %f\n", engineMonitor.getExhaustTemperature());
     SerialIO.printf("Alternator Temperature  = %f\n", engineMonitor.getAlternatorTemperature());
+    SerialIO.printf("Service Battery Temp    = %f\n", engineMonitor.getServiceBatteryTemperature());
     SerialIO.printf("Inside Temperature      = %f\n", bmp.readTemperature());
-    SerialIO.printf("Insire Pressure         = %f\n", bmp.readPressure());
+    SerialIO.printf("Inside Pressure         = %f\n", bmp.readPressure());
 
 }
 
@@ -410,7 +392,7 @@ void CallBack(int8_t cmd) {
       DumpStatus();
       break;
     case CMD_BT_OFF:
-      StopBlueTooth();
+      StopBluetooth();
       break;
   }
 }

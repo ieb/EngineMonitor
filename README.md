@@ -111,12 +111,22 @@ Pro Mini with RF board using ACS758xCB at suitable range (eg ACS758ECB-200B-PFF-
 
 ## 1 Wire
 
+* 3.3v orange marked + board side
+* signal white/orange marked nothng
+* - green marked - case side
+
 * Alternator Temp 
 * Exhaust Temperature 
 * Engine Room Temperature
+* Service Battery Temperature 
 
 Onewire sensors tend to not be rugged enough to attach directly to a engine block, see below
 for coolant temp
+
+## Pulse
+
+* NC Blue, case side, marked 2
+* W+ Orange, board side marked 1
 
 ## i2c
 
@@ -124,18 +134,18 @@ for coolant temp
    Engine room pressure, less that atmospheric indicates air flow problems.
    Engine room temperature (perhaps, however see 1 wire above)
 * ADS1115
-   ADC0 = Coolant Temperature Sensor
-   ADC1 = Alternator Voltage
-   ADC2 = Oil Pressure
-   ADC3 = Fuel Level
+   ADC0 = Coolant Temperature Sensor - Blue/Orange - case side, marked C
+   ADC1 = Alternator Voltage - White/orange, marked A
+   ADC2 = Service battery Voltage - White/brown, marked O (was Oil)
+   ADC3 = Fuel Level   - brown - esp32 side, marked F
 
 # NMEA2000 connection
 
 Using an AMP Superseal 4 way connector
-Pin 1 +12V
-Pin 2 GND
-Pin 3 CanL
-Pin 4 CanH
+Pin 1 +12V - Red
+Pin 2 GND - Black
+Pin 3 CanL - White
+Pin 4 CanH - Blue
 Shield GND plane on PCB
 
 GND connected to the NMEA2000 bus may need to be reviewed depending on if there is any voltage differential between NMEA2000 GND and Engine GND due to Charging currents from the alternator. Coolant Temperature will be impacted the most followed by Fuel Level, Oil Pressure and Alternator voltage if there is a significant voltage drop. This will put the NMEA2000 GND +ve to the engine GND increasing the aparant measured coolant temperature and Fuel level when the Alternator is producing high charge output. The GND connection from Engine to Ships GND is short, but not 0R.  
@@ -201,8 +211,7 @@ Obviously it is not ideal to bench test with a real engine so its mocked up usin
 * [x] Shorten rpm send and sample period without loosing precision, currently sampling at 2s, needs to send at 0.2s
 * [x] Fix engine on detection.
 * [x] Support Bluetooth enable button
-* [ ] Check 1-wire temperature sensors
+* [x] Check 1-wire temperature sensors
 * [x] Coolant Temperature conversion
 * [x] Alternator pulse verified
-* [ ] Fuel Level conversion
-* [ ] Add Oil pressure sensor 
+* [x] Fuel Level conversion

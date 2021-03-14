@@ -6,30 +6,29 @@
 
 
 static const char * engineconfig_commands[] = {
-    "help",
-    "dump",
-    "save",
-    "load",
-    "reset",
-    "activate",
-    "mon",
-    "moff",
-    "etc ",
-    "engine temp config ",
-    "ett ",
-    "engine temp therm ",
-    "rpm scale ",
-    "owc ",
-    "1 wire ",
-    "rpc ",
-    "read period ",
-    "opc ",
-    "oil pressure ",
-    "flc ",
-    "fuel level ",
-    "status",
-    "upd",
-    "update period "
+    "help", //0
+    "dump", //1
+    "save", //2
+    "load", //3
+    "reset", //4
+    "activate", //5
+    "mon", //6
+    "moff", //7
+    "etc ", //8
+    "engine temp config ", //9
+    "ett ", //10
+    "engine temp therm ", //11
+    "rpm scale ", //12
+    "owc ", //13
+    "1 wire ", //14
+    "rpc ", //14
+    "read period ", //16
+    "flc ", //17
+    "fuel level ", //18
+    "status", //19
+    "upd", //20
+    "update period ", //21
+    "btoff" //22
 };
 
 
@@ -43,6 +42,7 @@ EngineConfig::EngineConfig(EngineMonitor * _engineMonitor, Stream * _io) {
 void EngineConfig::begin() {
     reset();
     load();
+    activate();
 }
 
 
@@ -64,9 +64,8 @@ void EngineConfig::help() {
     io->println("etc|engine temp config <v>,<r>       - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
     io->println("ett|engine temp therm <n>,...<n>     - set engine coolant thermistor resistance values 0C-120C, floatx13, default as per manual");
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
-    io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, intx3, default 0,1,2");
+    io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, service battery, intx4, default 0,1,2,3");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
-    io->println("opc|oil pressure  <o>, <s>           - set oil pressure offset and scale, floatx2, defult 0.5,50");
     io->println("flc|fuel level  <v>,<r1>,<re>,<rf>   - set fuel level r1, voltage, rempty, rfull, floatx4, defult 5,545,190,3");
     io->println("status                               - output current status.");
     io->println("upd|update period <t>,<ms>           - PGN Update periods t = PGN, ms = period in ms");
@@ -75,6 +74,7 @@ void EngineConfig::help() {
     io->println("                                     - 130312 = temperature");
     io->println("                                     - 127508 = battery");
     io->println("                                     - 130311 = environment");
+    io->println("btoff                                - switch bt off, will terminate connection.");
 
 
 
@@ -130,20 +130,17 @@ int8_t EngineConfig::docmd(const char * command) {
         case CMD_RPC_L:
             setReadPeriodConfig(data);
             break;
-        case CMD_OPC_S:
-        case CMD_OPC_L:
-            setOilPressureConfig(data);
-            break;
         case CMD_FLC_S:
         case CMD_FLC_L:
             setFuelLevelCconfig(data);
             break;
-        case CMD_STATUS:
-            // handled by callback
-            break;
         case CMD_UPD_S:
         case CMD_UPD_L:
             setUpdatePeriod(data);
+            break;
+        case CMD_STATUS:
+        case CMD_BT_OFF:
+            // handled by callback
             break;
 
         default:
@@ -214,6 +211,8 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"Engine room temperature sensor one wire index %d", config->engineRoomTemperatureIDX);
     io->println(buffer);
+    sprintf(buffer,"Service Battery temperature sensor one wire index %d", config->serviceBatteryTemperatureIDX);
+    io->println(buffer);
     sprintf(buffer,"RPM read period %d", config->flywheelRPMReadPeriod);
     io->println(buffer);
     sprintf(buffer,"Engine temperature read period %d", config->engineTemperatureReadPeriod);
@@ -222,17 +221,13 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"Temperature sensor read period %d", config->temperatureReadPeriod);
     io->println(buffer);
-    sprintf(buffer,"Oil pressure scale %f", config->oilPressureScale);
-    io->println(buffer);
-    sprintf(buffer,"Oil pressure offset %f", config->oilPressureOffset);
-    io->println(buffer);
     sprintf(buffer,"Fuel level V %f", config->fuelLevelVin);
     io->println(buffer);
     sprintf(buffer,"Fuel level R1 %f", config->fuelLevelR1);
     io->println(buffer);
-    sprintf(buffer,"Fuel level R1 %f", config->fuelLevelEmptyR);
+    sprintf(buffer,"Fuel level R Empty %f", config->fuelLevelEmptyR);
     io->println(buffer);
-    sprintf(buffer,"Fuel level R1 %f", config->fuelLevelFullR);
+    sprintf(buffer,"Fuel level R Full %f", config->fuelLevelFullR);
     io->println(buffer);
     sprintf(buffer,"Engine RPM per Hz scale %f RPM/Hz", config->engineFlywheelRPMPerHz);
     io->println(buffer);
@@ -246,15 +241,15 @@ void EngineConfig::dump() {
         sprintf(buffer," %d, %f", i*10,  config->coolantTempR2[i]);
         io->println(buffer);
     }
-    sprintf(buffer,"PGN 127488 Rapid Engine Params, update period %ul ms", config->rapidEngineUpdatePeriod);
+    sprintf(buffer,"PGN 127488 Rapid Engine Params, update period %d ms", config->rapidEngineUpdatePeriod);
     io->println(buffer);
-    sprintf(buffer,"PGN 127489 Dynamic Engine Params, update period %ul ms", config->engineUpdatePeriod);
+    sprintf(buffer,"PGN 127489 Dynamic Engine Params, update period %d ms", config->engineUpdatePeriod);
     io->println(buffer);
-    sprintf(buffer,"PGN 130312 Temperatures, update period %ul ms", config->temperatureUpdatePeriod);
+    sprintf(buffer,"PGN 130312 Temperatures, update period %d ms", config->temperatureUpdatePeriod);
     io->println(buffer);
-    sprintf(buffer,"PGN 127508 Battery, update period %ul ms", config->voltageUpdatePeriod);
+    sprintf(buffer,"PGN 127508 Battery, update period %d ms", config->voltageUpdatePeriod);
     io->println(buffer);
-    sprintf(buffer,"PGN 130311 Environment, update period %ul ms", config->environmentUpdatePeriod);
+    sprintf(buffer,"PGN 130311 Environment, update period %d ms", config->environmentUpdatePeriod);
     io->println(buffer);
 }
 
@@ -322,12 +317,13 @@ void EngineConfig::setEngineRpmScale(const char * data) {
 }
 
 void EngineConfig::set1WireConfig(const char * data){ 
-    int16_t fields[3];
-    int nfields = loadLongTable(data, 3, &fields[0]);
-    if ( nfields == 3) {
+    int16_t fields[4];
+    int nfields = loadLongTable(data, 4, &fields[0]);
+    if ( nfields == 4) {
         config->alternatorTemperatureIDX = (int8_t)fields[0];
         config->exhaustTemperatureIDX = (int8_t)fields[1];
         config->engineRoomTemperatureIDX = (int8_t)fields[2];
+        config->serviceBatteryTemperatureIDX = (int8_t)fields[3];
         io->println("Updated One Wire Config.");
     } else {
         io->println("Incorrect number of values supplied.");
@@ -342,17 +338,6 @@ void EngineConfig::setReadPeriodConfig(const char * data){
         config->voltageReadPeriod = fields[2];
         config->temperatureReadPeriod = fields[3];
         io->println("Updated Period Config.");
-    } else {
-        io->println("Incorrect number of values supplied.");
-    }
-}
-void EngineConfig::setOilPressureConfig(const char * data){ 
-    float fields[2];
-    int nfields = loadFloatTable(data, 2, &fields[0]);
-    if ( nfields == 2) {
-        config->oilPressureOffset = fields[0];
-        config->oilPressureScale = fields[1];
-        io->println("Updated Oil Pressure Config.");
     } else {
         io->println("Incorrect number of values supplied.");
     }

@@ -99,6 +99,7 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     int8_t alternatorTemperatureIDX; // index fo the alternator 1Wire sensor
     int8_t exhaustTemperatureIDX; // etc
     int8_t engineRoomTemperatureIDX;
+    int8_t serviceBatteryTemperatureIDX;
     int16_t flywheelRPMReadPeriod;
     int16_t engineTemperatureReadPeriod;
     int16_t voltageReadPeriod;
@@ -108,8 +109,6 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     uint16_t temperatureUpdatePeriod;
     uint16_t voltageUpdatePeriod;
     uint16_t environmentUpdatePeriod;
-    float oilPressureScale;
-    float oilPressureOffset;
     float fuelLevelVin;
     float fuelLevelR1;
     float fuelLevelEmptyR;
@@ -132,22 +131,15 @@ class EngineMonitor {
       bool isEngineOn();
       bool isEngineRunning();
 
-      int8_t getLoad(); 
-      int8_t getTorque();
-      uint16_t getStatus1(); /* tN2kEngineDiscreteStatus1 */
-      uint16_t getStatus2(); /* tN2kEngineDiscreteStatus2 */
-      float getFuelPressure();
       float getFuelTankLevel();
-      float getCoolantPressure();
       void setStoredEngineHours(float storedEngineHours);
       float getEngineHours();
-      float getFuelRate();
-      float getOilPressure();
-      float getOilTemperature();
-      float getAlternatorVoltage(); 
+      float getAlternatorVoltage();
+      float getServiceBatteryVoltage();
       float getFlyWheelRPM(); 
       float getCoolantTemperature(); 
       float getAlternatorTemperature();
+      float getServiceBatteryTemperature();
       float getExhaustTemperature();
       float getEngineRoomTemperature();
 
@@ -159,8 +151,6 @@ class EngineMonitor {
 
     private:
       void readCoolant();
-      void readOil();
-      void readFuel();
       void readFuelTank();
       void readFlywheelRPM();
       float saveEngineHours();
@@ -177,21 +167,15 @@ class EngineMonitor {
       bool engineRunning = false;
       bool debugOutput = false;
       bool engineOn = false;
+      bool requestTemperaturesRequired = true;
       unsigned long engineStarted = 0;
       float engineHoursPrevious = 0.0;
-      uint16_t status1 = 0;
-      uint16_t status2 = 0;
-      int8_t load = 0;
-      int8_t torque = 0;
       float alternatorVoltage = 0.0;
+      float serviceBatteryVoltage = 0.0;
       float coolantVoltage = 0.0;
       float engineCoolantTemperature = 0.0;
       float flyWheelRPM = 0.0;
-      float fuelPressure = -1e9; // N2K NA
-      float coolantPressure = -1e9; // N2K NA
-      float fuelRate = -1e9; // N2K NA
       float fuelTankLevel = -1e9; // N2K NA
-      float oilPressure = -1e9; // N2K NA
       float temperature[MAX_ONE_WIRE_SENSORS];
       DeviceAddress tempDevices[MAX_ONE_WIRE_SENSORS];
       unsigned long rpmEdges[MAX_RPM_SAMPLES];

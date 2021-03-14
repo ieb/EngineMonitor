@@ -147,22 +147,6 @@ void test_rpc() {
     TEST_ASSERT_EQUAL_INT(30002,engineConfig->config->temperatureReadPeriod);
 }
 
-// opc|oil pressure  <o>, <s>    - set oil pressure offset and scale, floatx2, defult 0.5,50[Serial]
-// .oilPressureScale = 50,  // 0.5V = 0PSI, 4.5V = 200, scale=200/(4.5-0.5)
-// .oilPresureOffset = 0.5,
-void test_opc() {
-    TEST_ASSERT_EQUAL_FLOAT(0.5,engineConfig->config->oilPressureOffset);
-    TEST_ASSERT_EQUAL_FLOAT(50,engineConfig->config->oilPressureScale);
-    MockStreamLoader loader;
-    loader.load("oil pressure 0.7,84.3\n");
-    engineConfig->process(Callback);
-    TEST_ASSERT_EQUAL_FLOAT(0.7,engineConfig->config->oilPressureOffset);
-    TEST_ASSERT_EQUAL_FLOAT(84.3,engineConfig->config->oilPressureScale);
-    loader.load("opc 0.21,30.2\n");
-    engineConfig->process(Callback);
-    TEST_ASSERT_EQUAL_FLOAT(0.21,engineConfig->config->oilPressureOffset);
-    TEST_ASSERT_EQUAL_FLOAT(30.2,engineConfig->config->oilPressureScale);
-}
 
 // flc|fuel level  <o>, <s>             - set fuel level offset and scale, floatx2, defult 0.18,17.182130584
 //    .fuelLevelScale = 0.18, // see method readFuleLevel

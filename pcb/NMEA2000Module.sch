@@ -287,7 +287,7 @@ Text GLabel 3350 3750 0    60   Input ~ 0
 DIN2
 Text GLabel 3450 5050 0    60   Input ~ 0
 5v
-Text GLabel 6200 900  2    60   Output ~ 0
+Text GLabel 6800 800  2    60   Output ~ 0
 5v
 $Comp
 L GND #PWR05
@@ -688,17 +688,17 @@ Text GLabel 10500 4000 2    60   BiDi ~ 0
 CANH
 Text GLabel 10500 4100 2    60   BiDi ~ 0
 CANL
-Text GLabel 3650 900  0    60   Input ~ 0
+Text GLabel 3150 800  0    60   Input ~ 0
 12v
 $Comp
 L GND #PWR014
 U 1 1 6019290E
-P 5000 1600
-F 0 "#PWR014" H 5000 1600 30  0001 C CNN
-F 1 "GND" H 5000 1530 30  0001 C CNN
-F 2 "" H 5000 1600 60  0001 C CNN
-F 3 "" H 5000 1600 60  0001 C CNN
-	1    5000 1600
+P 4200 1600
+F 0 "#PWR014" H 4200 1600 30  0001 C CNN
+F 1 "GND" H 4200 1530 30  0001 C CNN
+F 2 "" H 4200 1600 60  0001 C CNN
+F 3 "" H 4200 1600 60  0001 C CNN
+	1    4200 1600
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -764,7 +764,7 @@ U 1 1 6037572F
 P 1000 7400
 F 0 "D3" H 1000 7500 40  0000 C CNN
 F 1 "DIODE" H 1000 7300 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 1000 7400 60  0001 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 1000 7400 60  0001 C CNN
 F 3 "" H 1000 7400 60  0000 C CNN
 	1    1000 7400
 	0    -1   -1   0   
@@ -786,7 +786,7 @@ U 1 1 6037621C
 P 1000 6750
 F 0 "D2" H 1000 6850 40  0000 C CNN
 F 1 "DIODE" H 1000 6650 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 1000 6750 60  0001 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 1000 6750 60  0001 C CNN
 F 3 "" H 1000 6750 60  0000 C CNN
 	1    1000 6750
 	0    -1   -1   0   
@@ -797,7 +797,7 @@ U 1 1 60376347
 P 3450 7400
 F 0 "D5" H 3450 7500 40  0000 C CNN
 F 1 "DIODE" H 3450 7300 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 3450 7400 60  0001 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 3450 7400 60  0001 C CNN
 F 3 "" H 3450 7400 60  0000 C CNN
 	1    3450 7400
 	0    -1   -1   0   
@@ -808,7 +808,7 @@ U 1 1 60376665
 P 3450 6800
 F 0 "D4" H 3450 6900 40  0000 C CNN
 F 1 "DIODE" H 3450 6700 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 3450 6800 60  0001 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 3450 6800 60  0001 C CNN
 F 3 "" H 3450 6800 60  0000 C CNN
 	1    3450 6800
 	0    -1   -1   0   
@@ -924,10 +924,6 @@ Wire Wire Line
 	9900 1000 9900 1200
 Wire Wire Line
 	2650 3600 2500 3600
-Wire Wire Line
-	3650 900  4600 900 
-Wire Wire Line
-	5400 900  6200 900 
 Wire Wire Line
 	9950 4750 9950 4800
 Wire Wire Line
@@ -1168,49 +1164,23 @@ Wire Wire Line
 $Comp
 L C C9
 U 1 1 603DE009
-P 4400 1200
-F 0 "C9" H 4400 1300 40  0000 L CNN
-F 1 "330nF" H 4406 1115 40  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4438 1050 30  0001 C CNN
-F 3 "" H 4400 1200 60  0000 C CNN
-	1    4400 1200
+P 4000 1100
+F 0 "C9" H 4000 1200 40  0000 L CNN
+F 1 "330nF" H 4006 1015 40  0000 L CNN
+F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4038 950 30  0001 C CNN
+F 3 "" H 4000 1100 60  0000 C CNN
+	1    4000 1100
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C10
 U 1 1 603DE0BF
-P 5600 1200
-F 0 "C10" H 5600 1300 40  0000 L CNN
-F 1 "100nF" H 5606 1115 40  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 5638 1050 30  0001 C CNN
-F 3 "" H 5600 1200 60  0000 C CNN
-	1    5600 1200
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4400 1400 4400 1500
-Wire Wire Line
-	4400 1500 5600 1500
-Wire Wire Line
-	5600 1500 5600 1400
-Wire Wire Line
-	5000 1200 5000 1600
-Connection ~ 5000 1500
-Wire Wire Line
-	4400 1000 4400 900 
-Connection ~ 4400 900 
-Wire Wire Line
-	5600 1000 5600 900 
-Connection ~ 5600 900 
-$Comp
-L LM7805CT U4
-U 1 1 603DFA56
-P 5000 950
-F 0 "U4" H 4800 1150 40  0000 C CNN
-F 1 "LM7805CT" H 5000 1150 40  0000 L CNN
-F 2 "TO_SOT_Packages_THT:TO-220_Horizontal" H 5000 1050 30  0000 C CIN
-F 3 "" H 5000 950 60  0000 C CNN
-	1    5000 950 
+P 5950 1100
+F 0 "C10" H 5950 1200 40  0000 L CNN
+F 1 "100nF" H 5956 1015 40  0000 L CNN
+F 2 "Capacitors_SMD:C_0805_HandSoldering" H 5988 950 30  0001 C CNN
+F 3 "" H 5950 1100 60  0000 C CNN
+	1    5950 1100
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -1267,4 +1237,76 @@ BTENABLE
 Connection ~ 2100 5150
 Wire Wire Line
 	3550 3550 3700 3550
+$Comp
+L DCDCConverter U4
+U 1 1 6049D818
+P 5050 1100
+F 0 "U4" H 5050 1100 60  0000 C CNN
+F 1 "DCDCConverter" H 5050 1100 60  0000 C CNN
+F 2 "Divers:DC-DC-Converter" H 5050 1100 60  0001 C CNN
+F 3 "" H 5050 1100 60  0001 C CNN
+	1    5050 1100
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4300 800  3650 800 
+Wire Wire Line
+	4000 900  4000 800 
+Connection ~ 4000 800 
+Wire Wire Line
+	5950 900  5950 800 
+Wire Wire Line
+	5750 800  6100 800 
+Wire Wire Line
+	5950 1300 5950 1400
+Wire Wire Line
+	5950 1400 5750 1400
+Wire Wire Line
+	4300 1400 4000 1400
+Wire Wire Line
+	4000 1400 4000 1300
+Wire Wire Line
+	4200 1600 4200 1400
+Connection ~ 4200 1400
+$Comp
+L DIODESCH D1
+U 1 1 6049E8CA
+P 3450 800
+F 0 "D1" H 3450 900 40  0000 C CNN
+F 1 "DIODESCH" H 3450 700 40  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 3450 800 60  0001 C CNN
+F 3 "" H 3450 800 60  0000 C CNN
+	1    3450 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L DIODESCH D6
+U 1 1 6049E984
+P 6300 800
+F 0 "D6" H 6300 900 40  0000 C CNN
+F 1 "DIODESCH" H 6300 700 40  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 6300 800 60  0001 C CNN
+F 3 "" H 6300 800 60  0000 C CNN
+	1    6300 800 
+	1    0    0    -1  
+$EndComp
+Connection ~ 5950 800 
+Wire Wire Line
+	6500 800  6800 800 
+Wire Wire Line
+	3250 800  3150 800 
+$Comp
+L GND #PWR018
+U 1 1 6049ED9D
+P 5900 1550
+F 0 "#PWR018" H 5900 1550 30  0001 C CNN
+F 1 "GND" H 5900 1480 30  0001 C CNN
+F 2 "" H 5900 1550 60  0001 C CNN
+F 3 "" H 5900 1550 60  0001 C CNN
+	1    5900 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5900 1550 5900 1400
+Connection ~ 5900 1400
 $EndSCHEMATC

@@ -34,14 +34,13 @@
 #define CMD_OWC_L 14
 #define CMD_RPC_S 15
 #define CMD_RPC_L 16
-#define CMD_OPC_S 17
-#define CMD_OPC_L 18
-#define CMD_FLC_S 19
-#define CMD_FLC_L 20
-#define CMD_STATUS 21
-#define CMD_UPD_S 22
-#define CMD_UPD_L 23
-#define NCOMMANDS 24
+#define CMD_FLC_S 17
+#define CMD_FLC_L 18
+#define CMD_STATUS 19
+#define CMD_UPD_S 20
+#define CMD_UPD_L 21
+#define CMD_BT_OFF 22
+#define NCOMMANDS 23
 
 
 union ConfigBlob {
@@ -74,7 +73,6 @@ class EngineConfig {
         void setEngineRpmScale(const char * data);
         void set1WireConfig(const char * data);
         void setReadPeriodConfig(const char * data);
-        void setOilPressureConfig(const char * data);
         void setFuelLevelCconfig(const char * data);
         int loadFloatTable(const char * data, int size, float * table);
         int loadLongTable(const char * data, int size, int16_t * table);
