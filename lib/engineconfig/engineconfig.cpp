@@ -66,7 +66,7 @@ void EngineConfig::help() {
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
     io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, service battery, intx4, default 0,1,2,3");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
-    io->println("flc|fuel level  <v>,<r1>,<re>,<rf>   - set fuel level r1, voltage, rempty, rfull, floatx4, defult 5,545,190,3");
+    io->println("flc|fuel level  <c>,...,<rf>         - set fuel level capacity, r1, voltage, rempty, rfull, floatx5, defult 60,5,220,0,190");
     io->println("status                               - output current status.");
     io->println("upd|update period <t>,<ms>           - PGN Update periods t = PGN, ms = period in ms");
     io->println("                                     - 127488 = engine rapid update");
@@ -74,11 +74,7 @@ void EngineConfig::help() {
     io->println("                                     - 130312 = temperature");
     io->println("                                     - 127508 = battery");
     io->println("                                     - 130311 = environment");
-    io->println("btoff                                - switch bt off, will terminate connection.");
-
-
-
-
+    io->println("btoff                                - switch bt off, will terminate connection.");    
 }
 
 int8_t EngineConfig::docmd(const char * command) {
@@ -229,6 +225,8 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"Fuel level R Full %f", config->fuelLevelFullR);
     io->println(buffer);
+    sprintf(buffer,"Fuel level Capacity %f l", config->fuelTankCapacity);
+    io->println(buffer);
     sprintf(buffer,"Engine RPM per Hz scale %f RPM/Hz", config->engineFlywheelRPMPerHz);
     io->println(buffer);
     sprintf(buffer,"Engine temperature bridge R1 %f R", config->coolantTempR1);
@@ -343,13 +341,14 @@ void EngineConfig::setReadPeriodConfig(const char * data){
     }
 }
 void EngineConfig::setFuelLevelCconfig(const char * data){
-    float fields[4];
-    int nfields = loadFloatTable(data, 4, &fields[0]);
-    if ( nfields == 4) {
-        config->fuelLevelVin = fields[0];
-        config->fuelLevelR1 = fields[1];
-        config->fuelLevelEmptyR = fields[2];
-        config->fuelLevelFullR = fields[3];
+    float fields[5];
+    int nfields = loadFloatTable(data, 5, &fields[0]);
+    if ( nfields == 5) {
+        config->fuelTankCapacity = fields[0];
+        config->fuelLevelVin = fields[1];
+        config->fuelLevelR1 = fields[2];
+        config->fuelLevelEmptyR = fields[3];
+        config->fuelLevelFullR = fields[4];
         io->println("Updated Fuel Level Config.");
     } else {
         io->println("Incorrect number of values supplied.");

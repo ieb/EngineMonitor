@@ -39,7 +39,7 @@ BluetoothSerial SerialBT;
 const unsigned long TransmitMessagesEngine[] PROGMEM={
   127488L, // Rapid engine ideally 0.1s
   127489L, // Dynamic engine 0.5s
-  127505L, // Battery status 2.5s
+  127505L, // Tank Level 2.5s
   130316L, // Extended Temperature 2.5s
   0};
 const unsigned long TransmitMessagesTemperature[] PROGMEM={
@@ -278,6 +278,11 @@ inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstan
                        N2kDoubleNA, engineHours, N2kDoubleNA, N2kDoubleNA, N2kInt8NA, N2kInt8NA,0,0);
 
     NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
+
+
+    SetN2kFluidLevel(N2kMsg,0,N2kft_Fuel,engineMonitor.getFuelTankLevel(),engineMonitor.getFuelTankCapacity());
+    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
+
     EngineUpdated=millis();
 
   }
@@ -372,17 +377,19 @@ void DumpStatus() {
     SerialIO.printf("Engine Powered up       = %d\n", engineMonitor.isEngineOn());
     SerialIO.printf("Engine Running          = %d\n", engineMonitor.isEngineRunning());
     SerialIO.printf("RPM                     = %f\n", engineMonitor.getFlyWheelRPM());
-    SerialIO.printf("Coolant Temperature     = %f\n", engineMonitor.getCoolantTemperature());
-    SerialIO.printf("Fuel Tank Level     = %f\n", engineMonitor.getFuelTankLevel());
-    SerialIO.printf("Alternator Voltage      = %f\n", engineMonitor.getAlternatorVoltage());
-    SerialIO.printf("Service Battery Voltage = %f\n", engineMonitor.getServiceBatteryVoltage());
-    SerialIO.printf("Engine Hours            = %f\n", engineMonitor.getEngineHours());
-    SerialIO.printf("Engine Room Temperature = %f\n", engineMonitor.getEngineRoomTemperature());
-    SerialIO.printf("Exhaust Temperature     = %f\n", engineMonitor.getExhaustTemperature());
-    SerialIO.printf("Alternator Temperature  = %f\n", engineMonitor.getAlternatorTemperature());
-    SerialIO.printf("Service Battery Temp    = %f\n", engineMonitor.getServiceBatteryTemperature());
-    SerialIO.printf("Inside Temperature      = %f\n", bmp.readTemperature());
-    SerialIO.printf("Inside Pressure         = %f\n", bmp.readPressure());
+    SerialIO.printf("Coolant Temperature     = %f C\n", engineMonitor.getCoolantTemperature());
+    SerialIO.printf("Fuel Tank Level         = %f %%\n", engineMonitor.getFuelTankLevel());
+    SerialIO.printf("Fuel Tank Level         = %f l\n", engineMonitor.getFuelTankLevel()*engineMonitor.getFuelTankCapacity()/100.0);
+    SerialIO.printf("Fuel Tank Capacity      = %f l\n", engineMonitor.getFuelTankCapacity());
+    SerialIO.printf("Alternator Voltage      = %f V\n", engineMonitor.getAlternatorVoltage());
+    SerialIO.printf("Service Battery Voltage = %f V\n", engineMonitor.getServiceBatteryVoltage());
+    SerialIO.printf("Engine Hours            = %f h\n", engineMonitor.getEngineHours());
+    SerialIO.printf("Engine Room Temperature = %f C\n", engineMonitor.getEngineRoomTemperature());
+    SerialIO.printf("Exhaust Temperature     = %f C\n", engineMonitor.getExhaustTemperature());
+    SerialIO.printf("Alternator Temperature  = %f C\n", engineMonitor.getAlternatorTemperature());
+    SerialIO.printf("Service Battery Temp    = %f C\n", engineMonitor.getServiceBatteryTemperature());
+    SerialIO.printf("Inside Temperature      = %f C\n", bmp.readTemperature());
+    SerialIO.printf("Inside Pressure         = %f Pa\n", bmp.readPressure());
 
 }
 
@@ -397,12 +404,32 @@ void CallBack(int8_t cmd) {
   }
 }
 
-
+#ifdef WITH_LOOP_STATS
+void UpdateTime(unsigned long start) {
+  static double tmax = 0, tmin = 10000, tmean = 0, tstd = 0;
+  static unsigned long lastOutput = 0;
+  unsigned long now = millis();
+  double t = now - start;
+  if ( t > tmax ) tmax = t;
+  if ( t < tmin ) tmin = t;
+  tmean = (tmean*9/10)+t/10;
+  tstd = (tstd*9/10)+((tmean-t)*(tmean-t))/10;
+  if ( lastOutput+10000<now ) {
+    lastOutput = now;
+    // typically
+    // Loop Stats tmax=20.000000, tmin=0.000000, tmean=2.006786, tstd=32.381637 
+    Serial.printf("Loop Stats tmax=%f, tmin=%f, tmean=%f, tstd=%f\n",tmax,tmin,tmean,tstd);
+  }
+}
+#endif
 
 
 
 void loop() {
   // read the serial data and process.
+#ifdef WITH_LOOP_STATS
+  unsigned long start = millis();
+#endif
   CheckBluetooth();
   engineConfig.process(CallBack);
   engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
@@ -415,4 +442,8 @@ void loop() {
   SendVoltages();
   SendEnvironment();
   NMEA2000.ParseMessages();
+#ifdef WITH_LOOP_STATS
+  UpdateTime(start);
+#endif
+
 }

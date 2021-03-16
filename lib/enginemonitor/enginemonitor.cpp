@@ -91,6 +91,7 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .fuelLevelR1 = 220.0,
     .fuelLevelEmptyR = 0,
     .fuelLevelFullR = 190,
+    .fuelTankCapacity = 60,
     .engineFlywheelRPMPerHz = 6.224463028,
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
@@ -458,6 +459,10 @@ void EngineMonitor::readSensors(bool debug) {
 
 float EngineMonitor::getFuelTankLevel() {
   return fuelTankLevel;
+}
+
+float EngineMonitor::getFuelTankCapacity() {
+  return config->fuelTankCapacity;
 }
 
 

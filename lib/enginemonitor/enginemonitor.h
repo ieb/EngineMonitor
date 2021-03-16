@@ -113,6 +113,7 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     float fuelLevelR1;
     float fuelLevelEmptyR;
     float fuelLevelFullR;
+    float fuelTankCapacity;
     float engineFlywheelRPMPerHz;
     float coolantTempR1; // value of R1 in engine temp coolant bridge
     float coolantTempVin; // Open circuit voltage
@@ -132,6 +133,7 @@ class EngineMonitor {
       bool isEngineRunning();
 
       float getFuelTankLevel();
+      float getFuelTankCapacity();
       void setStoredEngineHours(float storedEngineHours);
       float getEngineHours();
       float getAlternatorVoltage();

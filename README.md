@@ -215,3 +215,5 @@ Obviously it is not ideal to bench test with a real engine so its mocked up usin
 * [x] Coolant Temperature conversion
 * [x] Alternator pulse verified
 * [x] Fuel Level conversion
+* [x] Send Fuel Tank level when engine on.
+* [ ] Install and test.
