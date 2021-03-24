@@ -28,7 +28,11 @@ static const char * engineconfig_commands[] = {
     "status", //19
     "upd", //20
     "update period ", //21
-    "btoff" //22
+    "btoff", //22
+    "son", //23
+    "soff", //24
+    "sadc ", //25
+    "srpm " //26
 };
 
 
@@ -36,6 +40,7 @@ EngineConfig::EngineConfig(EngineMonitor * _engineMonitor, Stream * _io) {
     io = _io;
     engineMonitor = _engineMonitor;
     config = &(configBlob.config);
+    engineMonitor->simulate(&simulation);
 }
 
 
@@ -59,6 +64,8 @@ void EngineConfig::help() {
     io->println("actviate                             - Activates Current configuration");
     io->println("mon                                  - Enables sensor monitoring");
     io->println("moff                                 - Disables sensor monitoring");
+    io->println("status                               - output current status.");
+    io->println("btoff                                - switch bt off, will terminate connection.");    
 
 
     io->println("etc|engine temp config <v>,<r>       - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
@@ -67,14 +74,16 @@ void EngineConfig::help() {
     io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, service battery, intx4, default 0,1,2,3");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
     io->println("flc|fuel level  <c>,...,<rf>         - set fuel level capacity, r1, voltage, rempty, rfull, floatx5, defult 60,5,220,0,190");
-    io->println("status                               - output current status.");
     io->println("upd|update period <t>,<ms>           - PGN Update periods t = PGN, ms = period in ms");
     io->println("                                     - 127488 = engine rapid update");
     io->println("                                     - 127489 = engine dynamic params");
     io->println("                                     - 130312 = temperature");
     io->println("                                     - 127508 = battery");
     io->println("                                     - 130311 = environment");
-    io->println("btoff                                - switch bt off, will terminate connection.");    
+    io->println("son                                  - enable simulation");
+    io->println("soff                                 - disable simulation");
+    io->println("sadc <n>..<n4>                       - set simulated adc values");
+    io->println("srpm <n1>                            - set simulated edge counts");
 }
 
 int8_t EngineConfig::docmd(const char * command) {
@@ -138,6 +147,20 @@ int8_t EngineConfig::docmd(const char * command) {
         case CMD_BT_OFF:
             // handled by callback
             break;
+
+        case CMD_SIMULATION_ON:
+            simulation.enabled = true;
+            break;
+        case CMD_SIMULATION_OFF:
+            simulation.enabled = false;
+            break;
+        case CMD_SIMULATION_ADC:
+            setSimulationADC(data);
+            break;
+        case CMD_SIMULATION_RPMEDGE:
+            setSimulationRPM(data);
+            break;
+
 
         default:
             io->print(F("Command Not recognised:"));
@@ -282,6 +305,32 @@ void EngineConfig::setUpdatePeriod(const char * data) {
 
 
 
+
+void EngineConfig::setSimulationADC(const char * data) {
+    int16_t fields[4];
+    int nfields = loadLongTable(data, 4, &fields[0]);
+    if ( nfields == 4) {
+        simulation.adcRaw[0] = fields[0];
+        simulation.adcRaw[1] = fields[1];
+        simulation.adcRaw[2] = fields[2];
+        simulation.adcRaw[3] = fields[3];
+        io->println("Updated Simulation ADC");
+    } else {
+        io->println("Incorrect number of values supplied.");
+    }
+
+}
+void EngineConfig::setSimulationRPM(const char * data) {
+    int16_t fields[1];
+    int nfields = loadLongTable(data, 1, &fields[0]);
+    if ( nfields == 4) {
+        simulation.rpmEdges = fields[0];
+        io->println("Updated RPM Edges");
+    } else {
+        io->println("Incorrect number of values supplied.");
+    }
+
+}
 
 
 void EngineConfig::setEngineTempBridge(const char * data){ 

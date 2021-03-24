@@ -216,4 +216,13 @@ Obviously it is not ideal to bench test with a real engine so its mocked up usin
 * [x] Alternator pulse verified
 * [x] Fuel Level conversion
 * [x] Send Fuel Tank level when engine on.
-* [ ] Install and test.
+* [x] Install and test.
+* [x] Add sensor simulation to test offline without live data.
+* [ ] Fix engine on reported when not on
+* [x] Fix 150c when engine off, so its 0 when off.
+* [x] Fix baromiter update too low to Raymarine, lowered to 10s defaul from 60s.
+* [?] Fix 8 error messages from engine on init, look like they are 1-8 Unknown Errors, see p113 of the Raymarine LightHouse2 manual, possibly fixed by https://github.com/ttlappalainen/NMEA2000/commit/94c9bd5e1256ad8e4b3b8f7bd3f69339b2645b26
+* [ ] Reconfigure fuel level measurement, needs some additional wiring to power the fuel sensor from the 5v supply.
+* [x] Emit fuel tank when the engine is off.
+* [ ] Install and test2
+

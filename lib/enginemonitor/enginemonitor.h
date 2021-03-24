@@ -95,7 +95,7 @@ class Jdy40 {
 #define ENGINE_HOURS_KEY "eh"
 
 
-struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
+struct EngineMonitorConfig { // 4+9*2+8*4+13*4+10*2=126 bytes config. 
     int8_t alternatorTemperatureIDX; // index fo the alternator 1Wire sensor
     int8_t exhaustTemperatureIDX; // etc
     int8_t engineRoomTemperatureIDX;
@@ -121,12 +121,20 @@ struct EngineMonitorConfig { // 3+4*2+8*4+13*4=95 bytes config.
     uint16_t rfDevices[MAX_RF_DEVICES];
 };
 
+struct SensorSimulation {
+  bool enabled;
+  uint16_t adcRaw[4];
+  unsigned long rpmEdges;
+};
+
+
 extern EngineMonitorConfig defaultEngineMonitorConfig;
 
 class EngineMonitor {
     public:
       EngineMonitor(OneWire * _oneWire, Stream * _debug = &Serial);
       void calibrate(EngineMonitorConfig * config);
+      void simulate(SensorSimulation * simulation);
       void readSensors(bool debug);
       void begin();
       bool isEngineOn();
@@ -187,6 +195,7 @@ class EngineMonitor {
       DallasTemperature tempSensors;
       EngineMonitorConfig *config;
       Stream * debugStream;
+      SensorSimulation * simulation;
 };
 
 

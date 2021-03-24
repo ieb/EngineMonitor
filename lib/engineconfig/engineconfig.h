@@ -40,7 +40,11 @@
 #define CMD_UPD_S 20
 #define CMD_UPD_L 21
 #define CMD_BT_OFF 22
-#define NCOMMANDS 23
+#define CMD_SIMULATION_ON 23
+#define CMD_SIMULATION_OFF 24
+#define CMD_SIMULATION_ADC 25
+#define CMD_SIMULATION_RPMEDGE 26
+#define NCOMMANDS 26
 
 
 union ConfigBlob {
@@ -59,6 +63,7 @@ class EngineConfig {
         bool isMonitoringEnabled();
         ConfigBlob configBlob;
         EngineMonitorConfig * config;
+
     private:
         char * readLine();
         int8_t docmd(const char * command);
@@ -74,6 +79,8 @@ class EngineConfig {
         void set1WireConfig(const char * data);
         void setReadPeriodConfig(const char * data);
         void setFuelLevelCconfig(const char * data);
+        void setSimulationADC(const char * data);
+        void setSimulationRPM(const char * data);
         int loadFloatTable(const char * data, int size, float * table);
         int loadLongTable(const char * data, int size, int16_t * table);
         int loadUnsignedLongTable(const char * data, int size, unsigned long * table);
@@ -84,7 +91,11 @@ class EngineConfig {
         bool monitoringOn = false;
         int bufferPos = 0;
         char inputLine[READBUFFER_LEN];
-
+        SensorSimulation simulation = {
+            .enabled = false,
+            .adcRaw = {0,0,0,0},
+            .rpmEdges = 0
+        };
 };
 
 

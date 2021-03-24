@@ -240,13 +240,16 @@ void SendRapidEngineData() {
   tN2kMsg N2kMsg;
   unsigned long period = engineMonitor.getRapidEngineUpdatePeriod();
   if ( period != 0 && RapidEngineUpdated+period<millis() ) {
-    double rpm = engineMonitor.getFlyWheelRPM();
-    if ( engineConfig.isMonitoringEnabled() ) {
-      SerialIO.printf("RPM %f\n",rpm);
+    if ( engineMonitor.isEngineOn() ) {  
+      double rpm = engineMonitor.getFlyWheelRPM();
+      if ( engineConfig.isMonitoringEnabled() ) {
+        SerialIO.printf("RPM %f\n",rpm);
+      }
+      // PGN127488
+      SetN2kEngineParamRapid(N2kMsg, 0, rpm);
+      NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
     }
-    // PGN127488
-    SetN2kEngineParamRapid(N2kMsg, 0, rpm);
-    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
+  
     RapidEngineUpdated = millis();
   }
 }
@@ -257,36 +260,39 @@ void SendEngineData() {
 
   unsigned long period = engineMonitor.getEngineUpdatePeriod();
   if ( period != 0 && EngineUpdated+period<millis() ) {
-    // PGN127489
-    double temperature = engineMonitor.getCoolantTemperature();
-    double alternatorVoltage = engineMonitor.getAlternatorVoltage();
-    double engineHours = engineMonitor.getEngineHours();
+    if ( engineMonitor.isEngineOn() ) {  
 
-    if ( engineConfig.isMonitoringEnabled() ) {
-      SerialIO.printf("Engine Params1 t=%f, av=%f, eh=%f\n",
-        temperature, alternatorVoltage, engineHours);
+      // PGN127489
+      double temperature = engineMonitor.getCoolantTemperature();
+      double alternatorVoltage = engineMonitor.getAlternatorVoltage();
+      double engineHours = engineMonitor.getEngineHours();
+
+      if ( engineConfig.isMonitoringEnabled() ) {
+        SerialIO.printf("Engine Params1 t=%f, av=%f, eh=%f\n",
+          temperature, alternatorVoltage, engineHours);
+      }
+
+      /*
+
+  inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstance, double EngineOilPress, double EngineOilTemp, double EngineCoolantTemp, double AltenatorVoltage,
+                        double FuelRate, double EngineHours, double EngineCoolantPress=N2kDoubleNA, double EngineFuelPress=N2kDoubleNA,
+                        int8_t EngineLoad=N2kInt8NA, int8_t EngineTorque=N2kInt8NA,
+                        tN2kEngineDiscreteStatus1 Status1=0, tN2kEngineDiscreteStatus2 Status2=0) {
+                          */
+      SetN2kEngineDynamicParam(N2kMsg, 0, N2kDoubleNA, N2kDoubleNA, CToKelvin(temperature), alternatorVoltage,
+                        N2kDoubleNA, engineHours, N2kDoubleNA, N2kDoubleNA, N2kInt8NA, N2kInt8NA,0,0);
+
+      NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
     }
 
-    /*
-
-inline void SetN2kEngineDynamicParam(tN2kMsg &N2kMsg, unsigned char EngineInstance, double EngineOilPress, double EngineOilTemp, double EngineCoolantTemp, double AltenatorVoltage,
-                       double FuelRate, double EngineHours, double EngineCoolantPress=N2kDoubleNA, double EngineFuelPress=N2kDoubleNA,
-                       int8_t EngineLoad=N2kInt8NA, int8_t EngineTorque=N2kInt8NA,
-                       tN2kEngineDiscreteStatus1 Status1=0, tN2kEngineDiscreteStatus2 Status2=0) {
-                         */
-    SetN2kEngineDynamicParam(N2kMsg, 0, N2kDoubleNA, N2kDoubleNA, CToKelvin(temperature), alternatorVoltage,
-                       N2kDoubleNA, engineHours, N2kDoubleNA, N2kDoubleNA, N2kInt8NA, N2kInt8NA,0,0);
-
-    NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
-
-
+    // always send the fuel level data.
     SetN2kFluidLevel(N2kMsg,0,N2kft_Fuel,engineMonitor.getFuelTankLevel(),engineMonitor.getFuelTankCapacity());
     NMEA2000.SendMsg(N2kMsg, NMEA2000_DEV_ENGINE);
 
     EngineUpdated=millis();
-
   }
 }
+
 
 
 
@@ -434,10 +440,8 @@ void loop() {
   engineConfig.process(CallBack);
   engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
   // Send to N2K Bus
-  if ( engineMonitor.isEngineOn() ) {
-    SendRapidEngineData();
-    SendEngineData();
-  }
+  SendRapidEngineData();
+  SendEngineData();
   SendTemperatureData();
   SendVoltages();
   SendEnvironment();

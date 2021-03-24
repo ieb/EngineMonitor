@@ -26,6 +26,7 @@
 #define FUEL_LEVEL_ADC 3
 
 
+#define ADC_V_GAIN_EIGHT 0.000015625 // 0.512
 #define ADC_V_GAIN_FOUR 0.00003125 // 1.024
 #define ADC_V_GAIN_TWO  0.0000625  // 2.048
 #define ADC_V_GAIN_ONE  0.000125  // 4.096
@@ -40,8 +41,10 @@
 // Powered from the MDI, which supplies it with 5V
 // Will need to work out the resistance inside the MDI to 5V
 // measured values onboard
+#define FUEL_LEVEL_V1 5
+#define FUEL_LEVEL_R1 2200
 #define FUEL_LEVEL_R3 9970
-#define FUEL_LEVEL_R4 2180
+#define FUEL_LEVEL_R4 10000000  // the ADC internal resistance.
 
 volatile DRAM_ATTR unsigned long edgeCount0 = 0;
 volatile DRAM_ATTR unsigned long edgeCount1 = 0;
@@ -56,20 +59,15 @@ void IRAM_ATTR edgeCountHandler1() {
 }
 
 
-unsigned long readEdges(uint8_t chno) {
-  if (chno == 0) {
-      return edgeCount0;
-  } else {
-    return edgeCount1;
-  }
-}
-
 
 #define RapidEngineUpdatePeriod 100
 #define EngineUpdatePeriod 1000
 #define TemperatureUpdatePeriod 10000
 #define VoltageUpdatePeriod 5000
 #define EnvironmentUpdatePeriod 60000
+
+#define readADC(c) simulation->enabled?simulation->adcRaw[c]:adc.readADC_SingleEnded(c)
+#define readEdges(c) (c?edgeCount1:edgeCount0)
 
 
 
@@ -84,11 +82,11 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .temperatureReadPeriod = 30000,
     .rapidEngineUpdatePeriod = 100,
     .engineUpdatePeriod = 1000,
-    .temperatureUpdatePeriod = 10000,
+    .temperatureUpdatePeriod = 5000,
     .voltageUpdatePeriod = 5000,
-    .environmentUpdatePeriod = 60000,
+    .environmentUpdatePeriod = 10000,
     .fuelLevelVin = 5.0,
-    .fuelLevelR1 = 220.0,
+    .fuelLevelR1 = 2200.0,
     .fuelLevelEmptyR = 0,
     .fuelLevelFullR = 190,
     .fuelTankCapacity = 60,
@@ -99,6 +97,7 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .coolantTempR2 = {1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 },
     .rfDevices = {0,0,0,0,0,0,0,0,0,0}
 };
+
 
 /**
  * 
@@ -260,7 +259,7 @@ void EngineMonitor::readCoolant() {
   // coolantPressure, needs sensor
   // engineCoolantTemperature
   adc.setGain(GAIN_FOUR);
-  uint16_t vi = adc.readADC_SingleEnded(COOLANT_TEMPERATURE_ADC);
+  uint16_t vi = readADC(COOLANT_TEMPERATURE_ADC);
   coolantVoltage = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
   float r2 = getBridgeSensorResistance(coolantVoltage, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
   if ( r2 > config->coolantTempR2[0] ) {
@@ -283,7 +282,7 @@ void EngineMonitor::readCoolant() {
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
   }
-    debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
+  debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
 }
 
 
@@ -322,6 +321,10 @@ void EngineMonitor::readFlywheelRPM() {
   // the time will only wrap every 2.3y from device start
   unsigned long nedges = rpmEdges[pnow] - rpmEdges[rpmBufferpos];
   unsigned long period = rpmReadTime[pnow] - rpmReadTime[rpmBufferpos];
+  if ( simulation->enabled ) {
+    nedges = simulation->rpmEdges;
+    period = config->flywheelRPMReadPeriod;
+  }
 
   // period is in ms
   float edgeFrequencyHz = (nedges)/(0.001*period);
@@ -336,8 +339,10 @@ void EngineMonitor::updateEngineStatus() {
   // need to check that the alternatorVoltage is not on all the time since
   // that is connected via the A2B charger.
   if ( coolantVoltage > 0.1 || alternatorVoltage > 5.0 ) {
+    debugf("Engine on coolantV=%f > 0.1 || alternatorV=%f > 5.0 \n",coolantVoltage, alternatorVoltage);
     engineOn = true;
   } else {
+    debugf("Engine off coolantV=%f < 0.1 && alternatorV=%f < 5.0 \n",coolantVoltage, alternatorVoltage);
     engineOn = false;
   }
 
@@ -355,39 +360,82 @@ void EngineMonitor::updateEngineStatus() {
 
 
 /**
+ *   
+ * The curcuit used by the MDI some form  of bridge with the voltage of both terminals of the fuel sensor at about 2.5v
+ * and the difference between them 0.25v, this cant be easilly measured from ground with 1 ADC so an alternative circuit
+ * is needed.
+ * 
+ * Option 1.
+ * Use the Alternator Voltage to power the Fuel Level sensor. This is only on when the engine is turned on and is 
+ * measured so we know what it is when we measure the Fuel level. It does vary from about 11-15v.
+ * 
+ * 
  *   Circuit is 
-    12V| from Ignition.
-       R1  190R  (max 54mA, min 3mA)
-       |______ Vt (min 0.18v(full) max 6v)
+    15V |
+        R1
+        |______ Vt
+        |     |
+        |     R3
+        |     |___ ADC1
+        R2    |
+        |     R4
+   GND  |_____|
+
+ * R1 1000
+ * R2 0-190
+ * R3 10K
+ * R4 2K2
+ * Vt 15*190/(1000+190) = 2.39v full, 0v empty at 11v  11*190/(1000+190)=1.756
+ * ADC1 (15*190/(1000+190))*2.2/12.2, 0.43 full, 0v empty (11*190/(1000+190))*2.2/12.2 = 0.316
+ * I1 = 15/1000 = 15mA P1 = 0.015*0.015*1000 = 225mW
+ * 15/(1000+190) = 12.6mA, P1 0.0126*0.0126*1000 = 158mW 0.0126*0.0126*190=30mW
+ * 
+ * Vt 15*190/(680+190) = 3.27v full, 0v empty at 11v  11*190/(680+190)=2.40
+ * ADC1 (15*190/(680+190))*2.2/12.2, 0.59 full, 0v empty (11*190/(680+190))*2.2/12.2 = 0.433
+ * I1 = 15/680 = 22mA P1 = 0.022*0.022*680 = 329mW
+ * 15/(680+190) = 17.2mA, P1 0.0172*0.0172*680 = 201mW 0.0172*0.0172*190=56mW
+ * 
+ * Use 1K as lower voltage going into the tank, and fits better with the ADC ranges.
+ * 
+ * 
+ * Option 2
+ * Power from the ESP32 5v supply however this will need some changes.
+ * Circuit is 
+    3.3V from rail 
+       R1  2200  (max 7mA, min 5mA)
+       |______ Vt (empty 0v, full 0.95v )
        |     |
        |     R3 (10K)
-       |     |___ ADC (min 0.032v max 1.081)
- 3-190  R2     |
-       |     R4 (2K2)
-   GND |_____|
+       |    ` |___ ADC (0v empty, full 0.95v)
+ 0-190  R2     
+       |      No resistor only a capacitor.
+   GND |_____
 
-   R2 resistence changes liearly with level.
+  R2 resistence changes liearly with level.
   
   190 = 0%
   3 = 100%
 
+  R1 = 2K2
+  R2 = 190-0
+  Vin = 3v
+  ADCV = 3.3*190/(2200+190) = 0.26v
+  ADCVmin = 0v
+  I2 min 3.3/(2200+190) = 1.3mA
+  I2 max 3.3/(2200) = 1.5mA
 
-   offset = emptyR
-   scale = 100/(full-offset)
 
-   offset = 190
-   scale = 100/(3-190) = -0.5347593583
+1.5mA is ok for this so going with option 2.
   */
 
 
 
+
 void EngineMonitor::readFuelTank() {
-    // fuelTankLevel, reads from a sensor, typically 3-190R, 3 being full 190 being empty, linear resistor
-  // would need R bridge, this doesnt need to be read actively
-  // does need to convert voltage to resistance to level, level is not linear to voltage.
-  adc.setGain(GAIN_TWO);
-  float v = ADC_V_GAIN_TWO * adc.readADC_SingleEnded(FUEL_LEVEL_ADC);
-  float r2 = getBridgeSensorResistance(v,config->fuelLevelVin, config->fuelLevelR1,FUEL_LEVEL_R3,FUEL_LEVEL_R4 );
+  adc.setGain(GAIN_EIGHT);
+  float v = ADC_V_GAIN_EIGHT * readADC(FUEL_LEVEL_ADC);
+  adc.setGain(GAIN_ONE); // just in case a read happens without resetting gain.
+  float r2 = getBridgeSensorResistance(v, config->fuelLevelVin, config->fuelLevelR1 ,FUEL_LEVEL_R3,FUEL_LEVEL_R4 );
   float rawFuelTankLevel = (r2-config->fuelLevelEmptyR)*100.0/(config->fuelLevelFullR-config->fuelLevelEmptyR);
   fuelTankLevel = rawFuelTankLevel;
   if ( fuelTankLevel < 0.0) {
@@ -423,11 +471,11 @@ void EngineMonitor::readSensors(bool debug) {
   if ( readTime > lastVoltageReadTime+config->voltageReadPeriod  ) {
     debugf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
     adc.setGain(GAIN_ONE);
-    float v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(ALTERNATOR_VOLTAGE_ADC);
+    float v = ADC_V_GAIN_ONE * readADC(ALTERNATOR_VOLTAGE_ADC);
     alternatorVoltage = ALTERNATOR_VOLTAGE_SCALE * (v);
     debugf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
 
-    v = ADC_V_GAIN_ONE * adc.readADC_SingleEnded(SERVICE_BATTERY_VOLTAGE_ADC);
+    v = ADC_V_GAIN_ONE * readADC(SERVICE_BATTERY_VOLTAGE_ADC);
     serviceBatteryVoltage = SERVICE_BATTERY_VOLTAGE_SCALE * (v);
     debugf("Service Battery Voltage v=%f va=%f \n",v, serviceBatteryVoltage);
 
@@ -509,13 +557,21 @@ float EngineMonitor::getServiceBatteryVoltage() {
 }
 
 float EngineMonitor::getAlternatorVoltage() {
-  return alternatorVoltage;
+  if ( engineOn ) {
+    return alternatorVoltage;
+  } else {
+    return 0;
+  }
 }
 float EngineMonitor::getFlyWheelRPM() {
   return flyWheelRPM;
 }
 float EngineMonitor::getCoolantTemperature() {
-  return engineCoolantTemperature;
+  if ( engineOn ) {
+    return engineCoolantTemperature;
+  } else {
+    return 0;
+  }
 }
 float EngineMonitor::getServiceBatteryTemperature() {
   return temperature[config->serviceBatteryTemperatureIDX];
@@ -565,7 +621,10 @@ void EngineMonitor::calibrate(EngineMonitorConfig * _config) {
   if ( rpmSamples > MAX_RPM_SAMPLES ) {
     rpmSamples = MAX_RPM_SAMPLES;
   }
+}
 
+void EngineMonitor::simulate(SensorSimulation * _simulation) {
+  simulation = _simulation;
 }
 
 
