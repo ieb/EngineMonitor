@@ -3,6 +3,14 @@
 #define ENGINEMONITOR_H
 
 #include <Arduino.h>
+#include <N2kTypes.h>
+
+
+#define RPM_COUNTER_CH 0
+#define COOLANT_TEMPERATURE_ADC 0
+#define ALTERNATOR_VOLTAGE_ADC 1
+#define SERVICE_BATTERY_VOLTAGE_ADC 2
+#define FUEL_LEVEL_ADC 3
 
 
 #ifndef UNIT_TEST
@@ -95,7 +103,7 @@ class Jdy40 {
 #define ENGINE_HOURS_KEY "eh"
 
 
-struct EngineMonitorConfig { // 4+9*2+8*4+13*4+10*2=126 bytes config. 
+struct EngineMonitorConfig { // 4+9*2+8*4+6*4+13*4+10*2=150 bytes config. 
     int8_t alternatorTemperatureIDX; // index fo the alternator 1Wire sensor
     int8_t exhaustTemperatureIDX; // etc
     int8_t engineRoomTemperatureIDX;
@@ -117,13 +125,23 @@ struct EngineMonitorConfig { // 4+9*2+8*4+13*4+10*2=126 bytes config.
     float engineFlywheelRPMPerHz;
     float coolantTempR1; // value of R1 in engine temp coolant bridge
     float coolantTempVin; // Open circuit voltage
+
+    float alternatorVoltageAlarm;
+    float lowEngineVoltageAlarm;
+    float maxRPMAlarm;
+    float exhaustTemperatureAlarm;
+    float engineRoomTemperatureAlarm;
+    float alternatorTemperatureAlarm;
+
+
+
     float coolantTempR2[MAX_ENGINE_TEMP]; // 0 - 120C in 10C steps values for the resistnace of the temperature sensor
     uint16_t rfDevices[MAX_RF_DEVICES];
 };
 
 struct SensorSimulation {
   bool enabled;
-  uint16_t adcRaw[4];
+  float adcRaw[4];
   unsigned long rpmEdges;
 };
 
@@ -152,12 +170,13 @@ class EngineMonitor {
       float getServiceBatteryTemperature();
       float getExhaustTemperature();
       float getEngineRoomTemperature();
-
       unsigned long getRapidEngineUpdatePeriod();
       unsigned long getEngineUpdatePeriod();
       unsigned long getTemperatureUpdatePeriod();
       unsigned long getVoltageUpdatePeriod();
       unsigned long getEnvironmentUpdatePeriod();
+      tN2kEngineDiscreteStatus1 getEngineStatus1();
+      tN2kEngineDiscreteStatus2 getEngineStatus2();
 
     private:
       void readCoolant();
@@ -186,6 +205,8 @@ class EngineMonitor {
       float engineCoolantTemperature = 0.0;
       float flyWheelRPM = 0.0;
       float fuelTankLevel = -1e9; // N2K NA
+      tN2kEngineDiscreteStatus1 status1 = 0;
+      tN2kEngineDiscreteStatus2 status2 = 0;
       float temperature[MAX_ONE_WIRE_SENSORS];
       DeviceAddress tempDevices[MAX_ONE_WIRE_SENSORS];
       unsigned long rpmEdges[MAX_RPM_SAMPLES];

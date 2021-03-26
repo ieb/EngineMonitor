@@ -86,7 +86,7 @@ void StopBluetooth() {
 void CheckBluetooth() {
 #ifdef BLUETOOTHCLASSIC      
   if ( !blueToothRunning ) {
-    if ( digitalRead(BT_ENABLE_PIN) == LOW ) {
+    if ( true || digitalRead(BT_ENABLE_PIN) == LOW ) {
       SerialBT.begin("EngineMonitor"); 
       blueToothRunning = true;
       digitalWrite(BT_INDICATOR_PIN, HIGH); 
@@ -396,9 +396,38 @@ void DumpStatus() {
     SerialIO.printf("Service Battery Temp    = %f C\n", engineMonitor.getServiceBatteryTemperature());
     SerialIO.printf("Inside Temperature      = %f C\n", bmp.readTemperature());
     SerialIO.printf("Inside Pressure         = %f Pa\n", bmp.readPressure());
+    tN2kEngineDiscreteStatus1 status1 = engineMonitor.getEngineStatus1();
+    tN2kEngineDiscreteStatus2 status2 = engineMonitor.getEngineStatus2();
+
+    SerialIO.print("Alarms: ");
+    if ( status1.Bits.CheckEngine ) SerialIO.print("CheckEngine ");
+    if ( status1.Bits.OverTemperature ) SerialIO.print("OverTemperature ");
+    if ( status1.Bits.LowOilPressure ) SerialIO.print("LowOilPressure ");
+    if ( status1.Bits.LowOilLevel ) SerialIO.print("LowOilLevel ");
+    if ( status1.Bits.LowFuelPressure ) SerialIO.print("LowFuelPressure ");
+    if ( status1.Bits.LowSystemVoltage ) SerialIO.print("LowSystemVoltage ");
+    if ( status1.Bits.LowCoolantLevel ) SerialIO.print("LowCoolantLevel ");
+    if ( status1.Bits.WaterFlow ) SerialIO.print("WaterFlow ");
+    if ( status1.Bits.WaterInFuel ) SerialIO.print("WaterInFuel ");
+    if ( status1.Bits.ChargeIndicator ) SerialIO.print("ChargeIndicator ");
+    if ( status1.Bits.PreheatIndicator ) SerialIO.print("PreheatIndicator ");
+    if ( status1.Bits.HighBoostPressure ) SerialIO.print("HighBoostPressure ");
+    if ( status1.Bits.RevLimitExceeded ) SerialIO.print("RevLimitExceeded ");
+    if ( status1.Bits.EGRSystem ) SerialIO.print("EGRSystem ");
+    if ( status1.Bits.ThrottlePositionSensor ) SerialIO.print("ThrottlePositionSensor ");
+    if ( status1.Bits.EngineEmergencyStopMode ) SerialIO.print("EngineEmergencyStopMode ");
+    if ( status1.Bits.HighBoostPressure ) SerialIO.print("HighBoostPressure ");
+    if ( status2.Bits.WarningLevel1 ) SerialIO.print("WarningLevel1 ");
+    if ( status2.Bits.WarningLevel2 ) SerialIO.print("WarningLevel2 ");
+    if ( status2.Bits.LowOiPowerReduction ) SerialIO.print("LowOiPowerReduction ");
+    if ( status2.Bits.MaintenanceNeeded ) SerialIO.print("MaintenanceNeeded ");
+    if ( status2.Bits.EngineCommError ) SerialIO.print("EngineCommError ");
+    if ( status2.Bits.SubOrSecondaryThrottle ) SerialIO.print("SubOrSecondaryThrottle ");
+    if ( status2.Bits.NeutralStartProtect ) SerialIO.print("NeutralStartProtect ");
+    if ( status2.Bits.EngineShuttingDown ) SerialIO.print("EngineShuttingDown ");
+    SerialIO.println("");
 
 }
-
 void CallBack(int8_t cmd) {
   switch(cmd) {
     case CMD_STATUS:

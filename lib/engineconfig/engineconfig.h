@@ -42,9 +42,22 @@
 #define CMD_BT_OFF 22
 #define CMD_SIMULATION_ON 23
 #define CMD_SIMULATION_OFF 24
-#define CMD_SIMULATION_ADC 25
-#define CMD_SIMULATION_RPMEDGE 26
-#define NCOMMANDS 26
+#define CMD_SIMULATION_COOL 25
+#define CMD_SIMULATION_ALT 26
+#define CMD_SIMULATION_BAT 27
+#define CMD_SIMULATION_FUEL 28
+#define CMD_SIMULATION_RPMEDGE 29
+#define CMD_ALARM 30
+#define NCOMMANDS 31
+
+
+#define ALARM_LOW_ALTERNATOR_V 0
+#define ALARM_LOW_ENGINE_V 1
+#define ALARM_MAX_RPM 2
+#define ALARM_HIGH_EXHAUST_T 3
+#define ALARM_HIGH_ROOM_T 4
+#define ALARM_HIGH_ALTERNATOR_T 5
+#define NALARMS 6
 
 
 union ConfigBlob {
@@ -79,8 +92,7 @@ class EngineConfig {
         void set1WireConfig(const char * data);
         void setReadPeriodConfig(const char * data);
         void setFuelLevelCconfig(const char * data);
-        void setSimulationADC(const char * data);
-        void setSimulationRPM(const char * data);
+        void setAlarms(const char * data);
         int loadFloatTable(const char * data, int size, float * table);
         int loadLongTable(const char * data, int size, int16_t * table);
         int loadUnsignedLongTable(const char * data, int size, unsigned long * table);
@@ -93,7 +105,7 @@ class EngineConfig {
         char inputLine[READBUFFER_LEN];
         SensorSimulation simulation = {
             .enabled = false,
-            .adcRaw = {0,0,0,0},
+            .adcRaw = {0.0,0.0,0.0,0.0},
             .rpmEdges = 0
         };
 };

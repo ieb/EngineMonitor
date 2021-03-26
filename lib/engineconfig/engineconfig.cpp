@@ -31,9 +31,25 @@ static const char * engineconfig_commands[] = {
     "btoff", //22
     "son", //23
     "soff", //24
-    "sadc ", //25
-    "srpm " //26
+    "scool ", //25
+    "salt ", //26
+    "sbat ", //27
+    "sfuel ", //28
+    "srpm ", //29
+    "alarm " //30
 };
+
+
+static const char * alarms[] = {
+    "lowAlternatorVoltage ", // 0
+    "lowEngineVoltage ", //1
+    "maxRPM ", //2
+    "highExhaustTemperature ", //3
+    "highRoomTemperature ", //4
+    "highAlternatorTemperature " //5
+};
+
+
 
 
 EngineConfig::EngineConfig(EngineMonitor * _engineMonitor, Stream * _io) {
@@ -80,11 +96,22 @@ void EngineConfig::help() {
     io->println("                                     - 130312 = temperature");
     io->println("                                     - 127508 = battery");
     io->println("                                     - 130311 = environment");
+    io->println("alarm lowAlternatorVoltage <v>       - Low Alternator Voltage Alarm V");
+    io->println("alarm lowEngineVoltage <v>           - Low Engine Voltage Alarm V");
+    io->println("alarm maxRPM <v>                     - High RPM Alarm RPM");
+    io->println("alarm highExhaustTemperature <v>     - High Exhaust Temperature Alarm C");
+    io->println("alarm highRoomTemperature <v>        - High Engine Room Temperature Alarm C");
+    io->println("alarm highAlternatorTemperature <v>  - High Alternator Temperature Alarm C");
     io->println("son                                  - enable simulation");
     io->println("soff                                 - disable simulation");
-    io->println("sadc <n>..<n4>                       - set simulated adc values");
+    io->println("scool <v>                            - set simulated coolant voltage");
+    io->println("salt <v>                             - set simulated alternator voltage");
+    io->println("sbat <v>                             - set simulated battery voltage");
+    io->println("sfuel <v>                            - set simulated fuel voltage");
     io->println("srpm <n1>                            - set simulated edge counts");
 }
+
+
 
 int8_t EngineConfig::docmd(const char * command) {
     const char *data;
@@ -154,14 +181,24 @@ int8_t EngineConfig::docmd(const char * command) {
         case CMD_SIMULATION_OFF:
             simulation.enabled = false;
             break;
-        case CMD_SIMULATION_ADC:
-            setSimulationADC(data);
+        case CMD_SIMULATION_COOL:
+            simulation.adcRaw[COOLANT_TEMPERATURE_ADC] = atof(data);
+            break;
+        case CMD_SIMULATION_ALT:
+            simulation.adcRaw[ALTERNATOR_VOLTAGE_ADC] = atof(data);
+            break;
+        case CMD_SIMULATION_BAT:
+            simulation.adcRaw[SERVICE_BATTERY_VOLTAGE_ADC] = atof(data);
+            break;
+        case CMD_SIMULATION_FUEL:
+            simulation.adcRaw[FUEL_LEVEL_ADC] = atof(data);
             break;
         case CMD_SIMULATION_RPMEDGE:
-            setSimulationRPM(data);
+            simulation.rpmEdges = atof(data);
             break;
-
-
+        case CMD_ALARM:
+            setAlarms(data);
+            break;
         default:
             io->print(F("Command Not recognised:"));
             io->println(command);
@@ -272,7 +309,20 @@ void EngineConfig::dump() {
     io->println(buffer);
     sprintf(buffer,"PGN 130311 Environment, update period %d ms", config->environmentUpdatePeriod);
     io->println(buffer);
+    sprintf(buffer,"Low Alternator Voltage Alarm level %f v", config->alternatorVoltageAlarm);
+    io->println(buffer);
+    sprintf(buffer,"Low Engine Voltage Alarm level %f v", config->lowEngineVoltageAlarm);
+    io->println(buffer);
+    sprintf(buffer,"High Engne RPM Alarm level %f rpm", config->maxRPMAlarm);
+    io->println(buffer);
+    sprintf(buffer,"High Exhaust Temperature Alarm level %f C", config->exhaustTemperatureAlarm);
+    io->println(buffer);
+    sprintf(buffer,"High Engine Room Temperature Alarm level %f C", config->engineRoomTemperatureAlarm);
+    io->println(buffer);
+    sprintf(buffer,"High Alternator Temperature Alarm level %f C", config->alternatorTemperatureAlarm);
+    io->println(buffer);
 }
+
 
 void EngineConfig::setUpdatePeriod(const char * data) {
     unsigned long fields[2];
@@ -306,32 +356,37 @@ void EngineConfig::setUpdatePeriod(const char * data) {
 
 
 
-void EngineConfig::setSimulationADC(const char * data) {
-    int16_t fields[4];
-    int nfields = loadLongTable(data, 4, &fields[0]);
-    if ( nfields == 4) {
-        simulation.adcRaw[0] = fields[0];
-        simulation.adcRaw[1] = fields[1];
-        simulation.adcRaw[2] = fields[2];
-        simulation.adcRaw[3] = fields[3];
-        io->println("Updated Simulation ADC");
-    } else {
-        io->println("Incorrect number of values supplied.");
+
+
+void EngineConfig::setAlarms(const char * data) {
+    const char *adata;
+    int aid = match(data, alarms, NALARMS, &adata );
+    switch(aid) {
+        case ALARM_LOW_ALTERNATOR_V:
+            config->alternatorVoltageAlarm = atof(data);
+            break;
+        case ALARM_LOW_ENGINE_V:
+            config->lowEngineVoltageAlarm = atof(data);
+            break;
+        case ALARM_MAX_RPM:
+            config->maxRPMAlarm = atof(data);
+            break;
+        case ALARM_HIGH_EXHAUST_T:
+            config->exhaustTemperatureAlarm = atof(data);
+            break;
+        case ALARM_HIGH_ROOM_T:
+            config->engineRoomTemperatureAlarm = atof(data);
+            break;
+        case ALARM_HIGH_ALTERNATOR_T:
+            config->alternatorTemperatureAlarm = atof(data);
+            break;
+        default:
+            io->println("Alarm name not recognised");
+            return;
+
     }
-
+    io->println("Alarm set");
 }
-void EngineConfig::setSimulationRPM(const char * data) {
-    int16_t fields[1];
-    int nfields = loadLongTable(data, 1, &fields[0]);
-    if ( nfields == 4) {
-        simulation.rpmEdges = fields[0];
-        io->println("Updated RPM Edges");
-    } else {
-        io->println("Incorrect number of values supplied.");
-    }
-
-}
-
 
 void EngineConfig::setEngineTempBridge(const char * data){ 
     float fields[2];

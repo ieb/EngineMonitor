@@ -412,17 +412,6 @@ F 3 "" H 6550 5750 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L CONN_4 P9
-U 1 1 5F40035E
-P 9800 4400
-F 0 "P9" V 9750 4400 50  0000 C CNN
-F 1 "ANALOG IN" V 9850 4400 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 9800 4400 60  0001 C CNN
-F 3 "" H 9800 4400 60  0001 C CNN
-	1    9800 4400
-	0    -1   -1   0   
-$EndComp
-$Comp
 L CONN_2 P1
 U 1 1 5F403459
 P 4200 6100
@@ -464,7 +453,6 @@ Text Notes 4400 2400 0    60   ~ 0
 In only
 NoConn ~ 7400 4550
 NoConn ~ 7400 4350
-NoConn ~ 3700 3350
 NoConn ~ 3700 3150
 NoConn ~ 3700 2950
 NoConn ~ 3700 2750
@@ -579,12 +567,12 @@ $EndComp
 $Comp
 L R R14
 U 1 1 60181295
-P 10900 6300
-F 0 "R14" V 10980 6300 40  0000 C CNN
-F 1 "2K2" V 10907 6301 40  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 10830 6300 30  0001 C CNN
-F 3 "" H 10900 6300 30  0000 C CNN
-	1    10900 6300
+P 10900 4450
+F 0 "R14" V 10980 4450 40  0000 C CNN
+F 1 "2K2" V 10907 4451 40  0000 C CNN
+F 2 "Resistors_SMD:R_0805_HandSoldering" V 10830 4450 30  0001 C CNN
+F 3 "" H 10900 4450 30  0000 C CNN
+	1    10900 4450
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -925,35 +913,31 @@ Wire Wire Line
 Wire Wire Line
 	2650 3600 2500 3600
 Wire Wire Line
-	9950 4750 9950 4800
+	9950 4600 9950 4800
 Wire Wire Line
 	9950 4800 10900 4800
 Wire Wire Line
-	10900 4800 10900 4950
+	10900 4700 10900 4950
 Wire Wire Line
-	10400 4950 10400 4850
+	10400 4850 10400 4950
 Wire Wire Line
-	10400 4850 9850 4850
-Wire Wire Line
-	9850 4850 9850 4750
+	9850 4600 9850 4850
 Wire Wire Line
 	9950 4950 9950 4900
 Wire Wire Line
 	9950 4900 9750 4900
 Wire Wire Line
-	9750 4900 9750 4750
+	9750 4900 9750 4600
 Wire Wire Line
 	9350 4900 9350 4850
 Wire Wire Line
 	9350 4850 9650 4850
 Wire Wire Line
-	9650 4850 9650 4750
+	9650 4850 9650 4600
 Wire Wire Line
 	9100 6500 9100 6650
 Wire Wire Line
-	9100 6650 10900 6650
-Wire Wire Line
-	10900 6650 10900 6550
+	9100 6650 10650 6650
 Wire Wire Line
 	10650 6650 10650 6500
 Connection ~ 10650 6650
@@ -1072,7 +1056,7 @@ Wire Wire Line
 Wire Wire Line
 	8600 5550 10900 5550
 Wire Wire Line
-	10900 5450 10900 6050
+	10900 5550 10900 5450
 Wire Wire Line
 	8600 5650 10400 5650
 Wire Wire Line
@@ -1183,60 +1167,10 @@ F 3 "" H 5950 1100 60  0000 C CNN
 	1    5950 1100
 	1    0    0    -1  
 $EndComp
-$Comp
-L SW_PUSH SW1
-U 1 1 6049C3C9
-P 1750 5150
-F 0 "SW1" H 1900 5260 50  0000 C CNN
-F 1 "BT Enable" H 1750 5070 50  0000 C CNN
-F 2 "Buttons_Switches_ThroughHole:SW_PUSH_6mm" H 1750 5150 60  0001 C CNN
-F 3 "" H 1750 5150 60  0000 C CNN
-	1    1750 5150
-	1    0    0    -1  
-$EndComp
-$Comp
-L R R5
-U 1 1 6049C957
-P 2100 4700
-F 0 "R5" V 2180 4700 40  0000 C CNN
-F 1 "10K" V 2107 4701 40  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 2030 4700 30  0001 C CNN
-F 3 "" H 2100 4700 30  0000 C CNN
-	1    2100 4700
-	1    0    0    -1  
-$EndComp
-$Comp
-L GND #PWR017
-U 1 1 6049C9FC
-P 1300 5350
-F 0 "#PWR017" H 1300 5350 30  0001 C CNN
-F 1 "GND" H 1300 5280 30  0001 C CNN
-F 2 "" H 1300 5350 60  0001 C CNN
-F 3 "" H 1300 5350 60  0001 C CNN
-	1    1300 5350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	1450 5150 1300 5150
-Wire Wire Line
-	1300 5150 1300 5350
-Wire Wire Line
-	2050 5150 2350 5150
-Wire Wire Line
-	2100 5150 2100 4950
-Text GLabel 2250 4300 2    60   Input ~ 0
-3v3
-Wire Wire Line
-	2100 4450 2100 4300
-Wire Wire Line
-	2100 4300 2250 4300
-Text GLabel 3550 3550 0    60   Input ~ 0
+Text GLabel 3600 3350 0    60   Input ~ 0
 BTENABLE
-Text GLabel 2350 5150 2    60   Output ~ 0
+Text GLabel 10250 4650 2    60   Output ~ 0
 BTENABLE
-Connection ~ 2100 5150
-Wire Wire Line
-	3550 3550 3700 3550
 $Comp
 L DCDCConverter U4
 U 1 1 6049D818
@@ -1249,7 +1183,7 @@ F 3 "" H 5050 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	4300 800  3650 800 
+	3650 800  4300 800 
 Wire Wire Line
 	4000 900  4000 800 
 Connection ~ 4000 800 
@@ -1258,11 +1192,11 @@ Wire Wire Line
 Wire Wire Line
 	5750 800  6100 800 
 Wire Wire Line
-	5950 1300 5950 1400
+	5950 1400 5950 1300
 Wire Wire Line
-	5950 1400 5750 1400
+	5750 1400 5950 1400
 Wire Wire Line
-	4300 1400 4000 1400
+	4000 1400 4300 1400
 Wire Wire Line
 	4000 1400 4000 1300
 Wire Wire Line
@@ -1296,10 +1230,10 @@ Wire Wire Line
 Wire Wire Line
 	3250 800  3150 800 
 $Comp
-L GND #PWR018
+L GND #PWR017
 U 1 1 6049ED9D
 P 5900 1550
-F 0 "#PWR018" H 5900 1550 30  0001 C CNN
+F 0 "#PWR017" H 5900 1550 30  0001 C CNN
 F 1 "GND" H 5900 1480 30  0001 C CNN
 F 2 "" H 5900 1550 60  0001 C CNN
 F 3 "" H 5900 1550 60  0001 C CNN
@@ -1309,4 +1243,48 @@ $EndComp
 Wire Wire Line
 	5900 1550 5900 1400
 Connection ~ 5900 1400
+Wire Wire Line
+	3600 3350 3700 3350
+NoConn ~ 3700 3550
+Text GLabel 11100 4150 2    60   Input ~ 0
+3v3
+Text Notes 8200 5050 0    60   ~ 0
+1 = Coolant Thermistor\n2 = Alternator Voltage\n3 = Service Battery Voltage\n4 = Fuel Level Sensor\n5 = GND Fuel Sensor\n6 = Touch BT Enable\n
+Wire Wire Line
+	11100 4150 10900 4150
+Wire Wire Line
+	10900 4150 10900 4200
+Connection ~ 10900 4800
+Wire Wire Line
+	9850 4850 10400 4850
+Text Notes 4400 6100 0    60   ~ 0
+1 = +W terminal on Alternator\n2 = Unused
+$Comp
+L CONN_6 P2
+U 1 1 605B485A
+P 9900 4250
+F 0 "P2" V 9850 4250 60  0000 C CNN
+F 1 "CONN_6" V 9950 4250 60  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm" H 9900 4250 60  0001 C CNN
+F 3 "" H 9900 4250 60  0001 C CNN
+	1    9900 4250
+	0    -1   -1   0   
+$EndComp
+$Comp
+L GND #PWR018
+U 1 1 605B4A3A
+P 10050 4750
+F 0 "#PWR018" H 10050 4750 30  0001 C CNN
+F 1 "GND" H 10050 4680 30  0001 C CNN
+F 2 "" H 10050 4750 60  0001 C CNN
+F 3 "" H 10050 4750 60  0001 C CNN
+	1    10050 4750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	10050 4600 10050 4750
+Wire Wire Line
+	10150 4600 10150 4650
+Wire Wire Line
+	10150 4650 10250 4650
 $EndSCHEMATC

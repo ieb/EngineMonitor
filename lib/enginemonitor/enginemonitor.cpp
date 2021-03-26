@@ -19,11 +19,6 @@
 #define EDGE_PIN_1 GPIO_NUM_26
 
 
-#define RPM_COUNTER_CH 0
-#define COOLANT_TEMPERATURE_ADC 0
-#define ALTERNATOR_VOLTAGE_ADC 1
-#define SERVICE_BATTERY_VOLTAGE_ADC 2
-#define FUEL_LEVEL_ADC 3
 
 
 #define ADC_V_GAIN_EIGHT 0.000015625 // 0.512
@@ -66,7 +61,7 @@ void IRAM_ATTR edgeCountHandler1() {
 #define VoltageUpdatePeriod 5000
 #define EnvironmentUpdatePeriod 60000
 
-#define readADC(c) simulation->enabled?simulation->adcRaw[c]:adc.readADC_SingleEnded(c)
+#define readADC(s,c) (simulation->enabled?simulation->adcRaw[c]:s*adc.readADC_SingleEnded(c))
 #define readEdges(c) (c?edgeCount1:edgeCount0)
 
 
@@ -77,9 +72,9 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .engineRoomTemperatureIDX = 2,
     .serviceBatteryTemperatureIDX = 3,
     .flywheelRPMReadPeriod = 100,
-    .engineTemperatureReadPeriod = 5000,
-    .voltageReadPeriod = 10000,
-    .temperatureReadPeriod = 30000,
+    .engineTemperatureReadPeriod = 1000,
+    .voltageReadPeriod = 1000,
+    .temperatureReadPeriod = 10000,
     .rapidEngineUpdatePeriod = 100,
     .engineUpdatePeriod = 1000,
     .temperatureUpdatePeriod = 5000,
@@ -93,6 +88,15 @@ EngineMonitorConfig defaultEngineMonitorConfig {
     .engineFlywheelRPMPerHz = 6.224463028,
     .coolantTempR1 = 545.5,
     .coolantTempVin = 5.0,
+
+    // default alarm levels.
+    .alternatorVoltageAlarm = 13.0,
+    .lowEngineVoltageAlarm = 10.0,
+    .maxRPMAlarm = 4500.0,
+    .exhaustTemperatureAlarm = 60.0,
+    .engineRoomTemperatureAlarm = 60.0,
+    .alternatorTemperatureAlarm = 80.0,
+
     //               0,    10,   20   30   40   50   60   70  80  90 100  110  120
     .coolantTempR2 = {1743, 1076, 677, 439, 291, 197, 134, 97, 70, 51,38  ,29, 22 },
     .rfDevices = {0,0,0,0,0,0,0,0,0,0}
@@ -259,8 +263,7 @@ void EngineMonitor::readCoolant() {
   // coolantPressure, needs sensor
   // engineCoolantTemperature
   adc.setGain(GAIN_FOUR);
-  uint16_t vi = readADC(COOLANT_TEMPERATURE_ADC);
-  coolantVoltage = ADC_V_GAIN_FOUR*vi; // using ADC0 for 
+  coolantVoltage = readADC(ADC_V_GAIN_FOUR, COOLANT_TEMPERATURE_ADC);
   float r2 = getBridgeSensorResistance(coolantVoltage, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
   if ( r2 > config->coolantTempR2[0] ) {
     // below 0, assume straight line extending below 0-10C
@@ -281,6 +284,12 @@ void EngineMonitor::readCoolant() {
     engineCoolantTemperature = (120.0)+
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
+    if (engineCoolantTemperature > 150 ) {
+      engineCoolantTemperature = 150;
+    }
+    if (engineCoolantTemperature < -50 ) {
+      engineCoolantTemperature = -50;
+    }
   }
   debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
 }
@@ -355,8 +364,67 @@ void EngineMonitor::updateEngineStatus() {
     engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
+  // alarms, p113 of the LightHouse II manual has a list of Raymarine supported alarms.
+  // Unsupported alarms can be added but need to be configured.
+  //
+  // Over Temperature   flagOverTemp
+  // Low system voltage  flagLowSystemVoltage
+  // Water  ow (Exhaust temperature) flagWaterFlow
+  // Not charging (low alternator voltage) flagChargeIndicator
+  // Rev limit exceeded flagRevLimitExceeded
+  // Others  flagWarning1 flagWarning2
+
+  status1.Bits.OverTemperature=false;
+  status1.Bits.LowSystemVoltage=false;
+  status1.Bits.WaterFlow=false;
+  status1.Bits.ChargeIndicator=false;
+  status1.Bits.RevLimitExceeded=false;
+  status2.Bits.WarningLevel1=false;
+  status2.Bits.WarningLevel2=false;
+
+  if ( engineOn ) {
+    if ( coolantVoltage > 0.8 ) {
+       status2.Bits.WarningLevel1 = true;
+      status1.Bits.CheckEngine=true;
+    } else if ( coolantVoltage < 0.01 ) {
+       status2.Bits.WarningLevel1 = true;
+      status1.Bits.CheckEngine=true;
+      // coolant sensor short circuit
+    } 
+    if ( engineRunning && alternatorVoltage < config->alternatorVoltageAlarm ) {
+      status1.Bits.ChargeIndicator = true;
+    }
+    if ( alternatorVoltage < config->lowEngineVoltageAlarm ) {
+      status1.Bits.LowSystemVoltage = true;
+    }
+    if ( flyWheelRPM > config->maxRPMAlarm ) {
+      status1.Bits.RevLimitExceeded=true;
+    }
+  }
+  if ( getExhaustTemperature() > config->exhaustTemperatureAlarm ) {
+    status1.Bits.WaterFlow=true;
+    status1.Bits.CheckEngine=true;
+  }
+  if ( getEngineRoomTemperature() > config->engineRoomTemperatureAlarm ) {
+    status1.Bits.CheckEngine=true;
+  }
+  if ( getAlternatorTemperature() > config->alternatorTemperatureAlarm ) {
+    status2.Bits.WarningLevel1 = true;
+    status1.Bits.ChargeIndicator = true;
+  }
+  if ( fuelTankLevel < 10 ) { // less than 10% fuel left.
+    status2.Bits.WarningLevel2 = true;
+  }
+
 }
 
+
+tN2kEngineDiscreteStatus1 EngineMonitor::getEngineStatus1() {
+  return status1;
+}
+tN2kEngineDiscreteStatus2 EngineMonitor::getEngineStatus2() {
+  return status2;
+}
 
 
 /**
@@ -433,7 +501,7 @@ void EngineMonitor::updateEngineStatus() {
 
 void EngineMonitor::readFuelTank() {
   adc.setGain(GAIN_EIGHT);
-  float v = ADC_V_GAIN_EIGHT * readADC(FUEL_LEVEL_ADC);
+  float v = readADC(ADC_V_GAIN_EIGHT, FUEL_LEVEL_ADC);
   adc.setGain(GAIN_ONE); // just in case a read happens without resetting gain.
   float r2 = getBridgeSensorResistance(v, config->fuelLevelVin, config->fuelLevelR1 ,FUEL_LEVEL_R3,FUEL_LEVEL_R4 );
   float rawFuelTankLevel = (r2-config->fuelLevelEmptyR)*100.0/(config->fuelLevelFullR-config->fuelLevelEmptyR);
@@ -471,11 +539,11 @@ void EngineMonitor::readSensors(bool debug) {
   if ( readTime > lastVoltageReadTime+config->voltageReadPeriod  ) {
     debugf("Reading Voltage  %ld  %lu\n",lastVoltageReadTime+config->voltageReadPeriod, readTime );
     adc.setGain(GAIN_ONE);
-    float v = ADC_V_GAIN_ONE * readADC(ALTERNATOR_VOLTAGE_ADC);
+    float v =  readADC(ADC_V_GAIN_ONE, ALTERNATOR_VOLTAGE_ADC);
     alternatorVoltage = ALTERNATOR_VOLTAGE_SCALE * (v);
     debugf("Alternator Voltage v=%f va=%f \n",v, alternatorVoltage);
 
-    v = ADC_V_GAIN_ONE * readADC(SERVICE_BATTERY_VOLTAGE_ADC);
+    v =  readADC(ADC_V_GAIN_ONE, SERVICE_BATTERY_VOLTAGE_ADC);
     serviceBatteryVoltage = SERVICE_BATTERY_VOLTAGE_SCALE * (v);
     debugf("Service Battery Voltage v=%f va=%f \n",v, serviceBatteryVoltage);
 
