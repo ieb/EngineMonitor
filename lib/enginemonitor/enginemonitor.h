@@ -17,7 +17,6 @@
 #include <Adafruit_ADS1015.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <jdy40.h>
 
 #define unitout_ln(x)
 #define unitout(x) 
@@ -71,25 +70,6 @@ class DallasTemperature {
   }
 };
 
-class Jdy40 {
-  public:
-    bool setDeviceID(uint16_t id) {
-      return true;
-    };
-    bool setRFID(uint16_t id) {
-      return true;
-    };
-    void writeLine(const char * line) {
-
-    };
-    char * readLine() {
-      buffer[0] = '\0';
-      return &buffer[0];
-    };
-  private:
-     char buffer[20];
-
-};
 
 
 #endif
@@ -220,52 +200,7 @@ class EngineMonitor {
 };
 
 
-struct BatteryDevice {
-  float voltage;
-  float current;
-  float temperature;
-};
-struct EnvironmentDevice {
-  float temperature;
-  float pressure;
-  float humidity;
-};
-struct RFSensorDevice {
-  uint16_t type;
-  union {
-    BatteryDevice battery;
-    EnvironmentDevice environment;
-  };
-};
 
-#define SWITCHING_DEVICEID 0
-#define SWITCHING_RFID 1
-#define QUERY_DEVICE 2
-#define READING_DEVICE 4
-
-#define DATATYPE_BATTERY_MONITOR 1
-#define DATATYPE_ENVIRONMENT_MONITOR 2
-
-class RFSensorMonitor {
-  public:
-    RFSensorMonitor(Jdy40 *_rf, Stream * _debug = &Serial);
-    void calibrate(EngineMonitorConfig * config);
-    void readSensors();
-    void begin();
-  private:
-    int csvParse(char * inputLine, uint16_t len, char * elements[]);
-    bool queryDevice();
-    bool readResponse();
-    void saveResponse(uint16_t rfid, uint16_t datatype, char * fields[], int nfields );
-    unsigned long nextEvent = 0;
-    unsigned long defaultPeriod = 5000;
-    int state = SWITCHING_DEVICEID;
-    int currentDevice = 0;
-    Jdy40 * rf;
-    RFSensorDevice devices[MAX_RF_DEVICES];
-    EngineMonitorConfig *config;
-    Stream * debugStream;
-};
 
 
 #endif

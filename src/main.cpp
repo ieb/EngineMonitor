@@ -16,7 +16,8 @@
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
 #define BT_INDICATOR_PIN GPIO_NUM_2
-#define BT_ENABLE_PIN GPIO_NUM_25 // needs checking this can be used.
+#define BT_TOUCH_PIN GPIO_NUM_32 // needs checking this can be used.
+
 
 
 #include <NMEA2000_esp32.h>
@@ -76,6 +77,7 @@ int blueToothRunning = false;
 void StopBluetooth() {
 #ifdef BLUETOOTHCLASSIC      
   if ( blueToothRunning ) {
+    Serial.println("BT off");
     SerialBT.end();
     digitalWrite(BT_INDICATOR_PIN, LOW); 
     blueToothRunning = false;
@@ -84,9 +86,10 @@ void StopBluetooth() {
 }
 
 void CheckBluetooth() {
-#ifdef BLUETOOTHCLASSIC      
+#ifdef BLUETOOTHCLASSIC   
   if ( !blueToothRunning ) {
-    if ( true || digitalRead(BT_ENABLE_PIN) == LOW ) {
+    if ( touchRead(BT_TOUCH_PIN) < 10 ) {
+      Serial.println("BT on");
       SerialBT.begin("EngineMonitor"); 
       blueToothRunning = true;
       digitalWrite(BT_INDICATOR_PIN, HIGH); 
@@ -99,7 +102,6 @@ void setup() {
 
   
 #ifdef BLUETOOTHCLASSIC  
-  pinMode(BT_ENABLE_PIN, INPUT_PULLUP); 
   pinMode(BT_INDICATOR_PIN, OUTPUT);
   digitalWrite(BT_INDICATOR_PIN, LOW); 
   CheckBluetooth();
@@ -228,7 +230,7 @@ void setup() {
 
   
 
-  Serial.println("running, take pin 25 low to enable bluetooth");
+  Serial.println("running, touch pin 33 to enable BT");
   
 }
 
@@ -465,6 +467,7 @@ void loop() {
 #ifdef WITH_LOOP_STATS
   unsigned long start = millis();
 #endif
+
   CheckBluetooth();
   engineConfig.process(CallBack);
   engineMonitor.readSensors(engineConfig.isMonitoringEnabled());
@@ -475,6 +478,7 @@ void loop() {
   SendVoltages();
   SendEnvironment();
   NMEA2000.ParseMessages();
+  yield();
 #ifdef WITH_LOOP_STATS
   UpdateTime(start);
 #endif
