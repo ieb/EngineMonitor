@@ -218,14 +218,18 @@ Obviously it is not ideal to bench test with a real engine so its mocked up usin
 * [x] Send Fuel Tank level when engine on.
 * [x] Install and test.
 * [x] Add sensor simulation to test offline without live data.
-* [ ] Fix engine on reported when not on
+* [x] Fix engine on reported when not on
 * [x] Fix 150c when engine off, so its 0 when off.
 * [x] Fix baromiter update too low to Raymarine, lowered to 10s defaul from 60s.
-* [?] Fix 8 error messages from engine on init, look like they are 1-8 Unknown Errors, see p113 of the Raymarine LightHouse2 manual, possibly fixed by https://github.com/ttlappalainen/NMEA2000/commit/94c9bd5e1256ad8e4b3b8f7bd3f69339b2645b26
+* [x] Fix 8 error messages from engine on init, look like they are 1-8 Unknown Errors, see p113 of the Raymarine LightHouse2 manual, possibly fixed by https://github.com/ttlappalainen/NMEA2000/commit/94c9bd5e1256ad8e4b3b8f7bd3f69339b2645b26
 * [x] Reconfigure fuel level measurement, needs some additional wiring to power the fuel sensor from the 5v supply.
 * [x] Emit fuel tank when the engine is off.
 * [x] Add alarms and configuration expecially for values not supported by displays.
-* [ ] Make bluetooth touch sensitive
-* [ ] Bench test
-* [ ] Install and test2
+* [x] Make bluetooth touch sensitive
+* [x] Install and test2
+* [x] Make default thermal sensor match Luna
+* [x] Fix engine on bugs
+* [x] Removed Touch BT enable and go back to switch to see if it makes i2c initialisation stable, using Touch seems to have introduced instability into the sensors.
+* [x] Bench test
+* [ ] Install and test3
 

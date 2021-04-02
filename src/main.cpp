@@ -16,7 +16,7 @@
 #define RF_RX  GPIO_NUM_16
 #define RF_TX  GPIO_NUM_17
 #define BT_INDICATOR_PIN GPIO_NUM_2
-#define BT_TOUCH_PIN GPIO_NUM_32 // needs checking this can be used.
+#define BT_ENABLE_PIN GPIO_NUM_25
 
 
 
@@ -72,7 +72,16 @@ char inputBuffer[INPUT_BUFFER_SIZE];
 #define NMEA2000_DEV_BATTERIES   3
 
 
-int blueToothRunning = false;
+
+volatile DRAM_ATTR int enableBluetoothPressed = 0;
+
+void IRAM_ATTR handleBluetoothEnable() {
+  enableBluetoothPressed = true;
+}
+
+
+int blueToothRunning = 0;
+
 
 void StopBluetooth() {
 #ifdef BLUETOOTHCLASSIC      
@@ -88,11 +97,20 @@ void StopBluetooth() {
 void CheckBluetooth() {
 #ifdef BLUETOOTHCLASSIC   
   if ( !blueToothRunning ) {
-    if ( touchRead(BT_TOUCH_PIN) < 10 ) {
-      Serial.println("BT on");
+    if ( enableBluetoothPressed ) {
+      Serial.println("BT on" );
       SerialBT.begin("EngineMonitor"); 
-      blueToothRunning = true;
       digitalWrite(BT_INDICATOR_PIN, HIGH); 
+      blueToothRunning = true;
+      enableBluetoothPressed = false;
+    }
+  } else {
+    if ( enableBluetoothPressed ) {
+      Serial.println("BT off");
+      SerialBT.end();
+      digitalWrite(BT_INDICATOR_PIN, LOW); 
+      blueToothRunning = false;
+      enableBluetoothPressed = false;
     }
   }
 #endif
@@ -102,6 +120,8 @@ void setup() {
 
   
 #ifdef BLUETOOTHCLASSIC  
+  pinMode(BT_ENABLE_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(BT_ENABLE_PIN), handleBluetoothEnable, FALLING);
   pinMode(BT_INDICATOR_PIN, OUTPUT);
   digitalWrite(BT_INDICATOR_PIN, LOW); 
   CheckBluetooth();

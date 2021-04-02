@@ -87,7 +87,7 @@ void EngineConfig::help() {
     io->println("etc|engine temp config <v>,<r>       - set engine coolant top resistor and voltage , floatx2, default 5,545.5");
     io->println("ett|engine temp therm <n>,...<n>     - set engine coolant thermistor resistance values 0C-120C, floatx13, default as per manual");
     io->println("rpm scale <n>                        - set rpm per Hz scale, float, default 6.224463028");
-    io->println("owc|1 wire <a>,..                    - set one wire index for alternator, exhaust, engine room, service battery, intx4, default 0,1,2,3");
+    io->println("owc|1 wire <a>,..                    - set one wire index for service battery, exhaust,  alternator, engine room,  intx4, default 0,1,2,3");
     io->println("rpc|read period  <r>,..              - set read period in ms or rpm, engine, voltage, temp, intx4, default 2000,5000,10000,30000");
     io->println("flc|fuel level  <c>,...,<rf>         - set fuel level capacity, r1, voltage, rempty, rfull, floatx5, defult 60,5,220,0,190");
     io->println("upd|update period <t>,<ms>           - PGN Update periods t = PGN, ms = period in ms");
@@ -259,15 +259,16 @@ void EngineConfig::process(void cb(int8_t)) {
 }
 
 
+
 void EngineConfig::dump() { 
     char buffer[80];
-    sprintf(buffer,"Alternator temperature sensor one wire index %d", config->alternatorTemperatureIDX);
+    sprintf(buffer,"Service Battery temperature sensor one wire index %d", config->serviceBatteryTemperatureIDX);
     io->println(buffer);
     sprintf(buffer,"Exhaust temperature sensor one wire index %d", config->exhaustTemperatureIDX);
     io->println(buffer);
-    sprintf(buffer,"Engine room temperature sensor one wire index %d", config->engineRoomTemperatureIDX);
+    sprintf(buffer,"Alternator temperature sensor one wire index %d", config->alternatorTemperatureIDX);
     io->println(buffer);
-    sprintf(buffer,"Service Battery temperature sensor one wire index %d", config->serviceBatteryTemperatureIDX);
+    sprintf(buffer,"Engine room temperature sensor one wire index %d", config->engineRoomTemperatureIDX);
     io->println(buffer);
     sprintf(buffer,"RPM read period %d", config->flywheelRPMReadPeriod);
     io->println(buffer);
@@ -422,10 +423,10 @@ void EngineConfig::set1WireConfig(const char * data){
     int16_t fields[4];
     int nfields = loadLongTable(data, 4, &fields[0]);
     if ( nfields == 4) {
-        config->alternatorTemperatureIDX = (int8_t)fields[0];
+        config->serviceBatteryTemperatureIDX = (int8_t)fields[0];
         config->exhaustTemperatureIDX = (int8_t)fields[1];
-        config->engineRoomTemperatureIDX = (int8_t)fields[2];
-        config->serviceBatteryTemperatureIDX = (int8_t)fields[3];
+        config->alternatorTemperatureIDX = (int8_t)fields[2];
+        config->engineRoomTemperatureIDX = (int8_t)fields[3];
         io->println("Updated One Wire Config.");
     } else {
         io->println("Incorrect number of values supplied.");

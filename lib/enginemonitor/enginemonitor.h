@@ -128,6 +128,13 @@ struct SensorSimulation {
 
 extern EngineMonitorConfig defaultEngineMonitorConfig;
 
+
+#define COOLANT_NORMAL 0
+#define COOLANT_FROZEN 1
+#define COOLANT_BOILING 2
+#define COOLANT_OFF 3
+
+
 class EngineMonitor {
     public:
       EngineMonitor(OneWire * _oneWire, Stream * _debug = &Serial);
@@ -169,6 +176,7 @@ class EngineMonitor {
       int maxActiveDevice = 0;
       int8_t rpmSamples = MAX_RPM_SAMPLES;
       int8_t rpmBufferpos = 0;
+      int8_t coolantState = COOLANT_OFF;
       unsigned long lastEngineTemperatureReadTime = 0;
       unsigned long lastFlywheelRPMReadTime = 0;
       unsigned long lastVoltageReadTime = 0;

@@ -65,13 +65,19 @@ void IRAM_ATTR edgeCountHandler1() {
 #define readADC(s,c) (simulation->enabled?simulation->adcRaw[c]:s*adc.readADC_SingleEnded(c))
 #define readEdges(c) (c?edgeCount1:edgeCount0)
 
-
+/*
+On Luna this is the order of the wired sensors.
+Service battery 0
+Exhaust 1
+Alternator 2
+Engine room. 3
+*/
 
 EngineMonitorConfig defaultEngineMonitorConfig {
-    .alternatorTemperatureIDX = 0,
+    .alternatorTemperatureIDX = 2,
     .exhaustTemperatureIDX = 1,
-    .engineRoomTemperatureIDX = 2,
-    .serviceBatteryTemperatureIDX = 3,
+    .engineRoomTemperatureIDX = 3,
+    .serviceBatteryTemperatureIDX = 0,
     .flywheelRPMReadPeriod = 100,
     .engineTemperatureReadPeriod = 1000,
     .voltageReadPeriod = 1000,
@@ -266,10 +272,16 @@ void EngineMonitor::readCoolant() {
   adc.setGain(GAIN_FOUR);
   coolantVoltage = readADC(ADC_V_GAIN_FOUR, COOLANT_TEMPERATURE_ADC);
   float r2 = getBridgeSensorResistance(coolantVoltage, config->coolantTempVin, config->coolantTempR1, COOLANT_TEMPERATURE_R3, COOLANT_TEMPERATURE_R4);
+  coolantState = COOLANT_NORMAL;
   if ( r2 > config->coolantTempR2[0] ) {
     // below 0, assume straight line extending below 0-10C
     engineCoolantTemperature = 10.0*((config->coolantTempR2[0]-r2)/
                  (config->coolantTempR2[0]-config->coolantTempR2[1]));
+    if (engineCoolantTemperature < -50 ) {
+      coolantState = COOLANT_FROZEN;
+      engineCoolantTemperature = -50;
+    }
+    return;
   } else {
     for (int i = 1; i < MAX_ENGINE_TEMP; i++) {
       if ( r2 > config->coolantTempR2[i] ) {
@@ -282,14 +294,13 @@ void EngineMonitor::readCoolant() {
       }
     }
     // above 120C assume straight line extending from 110-120C
+    coolantState = COOLANT_BOILING;
     engineCoolantTemperature = (120.0)+
            10.0*((config->coolantTempR2[MAX_ENGINE_TEMP-1]-r2)/
                  (config->coolantTempR2[MAX_ENGINE_TEMP-2]-config->coolantTempR2[MAX_ENGINE_TEMP-1]));
     if (engineCoolantTemperature > 150 ) {
+      coolantState = COOLANT_OFF;
       engineCoolantTemperature = 150;
-    }
-    if (engineCoolantTemperature < -50 ) {
-      engineCoolantTemperature = -50;
     }
   }
   debugf("Coolant  v=%f  r2=%f t=%f \n",coolantVoltage, r2,engineCoolantTemperature);
@@ -348,13 +359,6 @@ void EngineMonitor::updateEngineStatus() {
   // has a non zero voltage the engine is powered up.
   // need to check that the alternatorVoltage is not on all the time since
   // that is connected via the A2B charger.
-  if ( coolantVoltage > 0.1 || alternatorVoltage > 5.0 ) {
-    debugf("Engine on coolantV=%f > 0.1 || alternatorV=%f > 5.0 \n",coolantVoltage, alternatorVoltage);
-    engineOn = true;
-  } else {
-    debugf("Engine off coolantV=%f < 0.1 && alternatorV=%f < 5.0 \n",coolantVoltage, alternatorVoltage);
-    engineOn = false;
-  }
 
   // if the rpm is non zero the engine is running.
   if ( !engineRunning && flyWheelRPM > 100) {
@@ -365,6 +369,23 @@ void EngineMonitor::updateEngineStatus() {
     engineHoursPrevious = saveEngineHours();
     engineRunning = false;
   }
+
+  if ( engineOn ) {
+    // if the engine is running it must be on.
+    if (!engineRunning) {
+      if ( coolantState == COOLANT_OFF ) {
+        engineOn = false;
+      } 
+    }
+  } else {
+    if ( engineRunning ) {
+      engineOn = true;
+    } else if (coolantState != COOLANT_OFF ) {
+      // the MDI unit must be turned on
+      engineOn = true;
+    } 
+  }
+
   // alarms, p113 of the LightHouse II manual has a list of Raymarine supported alarms.
   // Unsupported alarms can be added but need to be configured.
   //
@@ -393,6 +414,9 @@ void EngineMonitor::updateEngineStatus() {
       status1.Bits.CheckEngine=true;
       // coolant sensor short circuit
     } 
+    if ( engineCoolantTemperature > 100 ) {
+      status1.Bits.OverTemperature = true;
+    }
     if ( engineRunning && alternatorVoltage < config->alternatorVoltageAlarm ) {
       status1.Bits.ChargeIndicator = true;
     }
@@ -531,9 +555,9 @@ void EngineMonitor::readSensors(bool debug) {
     debugf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
     debugf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
     debugf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
-    updateEngineStatus();
     readCoolant();
     readFuelTank();
+    updateEngineStatus();
     lastEngineTemperatureReadTime = readTime;
   }
 
