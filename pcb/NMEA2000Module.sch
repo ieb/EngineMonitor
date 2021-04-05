@@ -664,17 +664,17 @@ Text GLabel 10550 3650 2    60   Output ~ 0
 $Comp
 L GND #PWR013
 U 1 1 601925D8
-P 10850 3850
-F 0 "#PWR013" H 10850 3850 30  0001 C CNN
-F 1 "GND" H 10850 3780 30  0001 C CNN
-F 2 "" H 10850 3850 60  0001 C CNN
-F 3 "" H 10850 3850 60  0001 C CNN
-	1    10850 3850
+P 10850 3750
+F 0 "#PWR013" H 10850 3750 30  0001 C CNN
+F 1 "GND" H 10850 3680 30  0001 C CNN
+F 2 "" H 10850 3750 60  0001 C CNN
+F 3 "" H 10850 3750 60  0001 C CNN
+	1    10850 3750
 	1    0    0    -1  
 $EndComp
-Text GLabel 10500 4000 2    60   BiDi ~ 0
+Text GLabel 9950 3850 0    60   BiDi ~ 0
 CANH
-Text GLabel 10500 4100 2    60   BiDi ~ 0
+Text GLabel 9950 3700 0    60   BiDi ~ 0
 CANL
 Text GLabel 3150 800  0    60   Input ~ 0
 12v
@@ -805,6 +805,104 @@ Text GLabel 3200 6550 0    60   Input ~ 0
 3v3
 Text GLabel 850  6500 0    60   Input ~ 0
 3v3
+$Comp
+L C C9
+U 1 1 603DE009
+P 4000 1100
+F 0 "C9" H 4000 1200 40  0000 L CNN
+F 1 "330nF" H 4006 1015 40  0000 L CNN
+F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4038 950 30  0001 C CNN
+F 3 "" H 4000 1100 60  0000 C CNN
+	1    4000 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C10
+U 1 1 603DE0BF
+P 5950 1100
+F 0 "C10" H 5950 1200 40  0000 L CNN
+F 1 "100nF" H 5956 1015 40  0000 L CNN
+F 2 "Capacitors_SMD:C_0805_HandSoldering" H 5988 950 30  0001 C CNN
+F 3 "" H 5950 1100 60  0000 C CNN
+	1    5950 1100
+	1    0    0    -1  
+$EndComp
+Text GLabel 3550 3550 0    60   Input ~ 0
+BTENABLE
+Text GLabel 10250 4650 2    60   Output ~ 0
+BTENABLE
+$Comp
+L DCDCConverter U4
+U 1 1 6049D818
+P 5050 1100
+F 0 "U4" H 5050 1100 60  0000 C CNN
+F 1 "DCDCConverter" H 5050 1100 60  0000 C CNN
+F 2 "Divers:DC-DC-Converter" H 5050 1100 60  0001 C CNN
+F 3 "" H 5050 1100 60  0001 C CNN
+	1    5050 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L DIODESCH D1
+U 1 1 6049E8CA
+P 3450 800
+F 0 "D1" H 3450 900 40  0000 C CNN
+F 1 "DIODESCH" H 3450 700 40  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 3450 800 60  0001 C CNN
+F 3 "" H 3450 800 60  0000 C CNN
+	1    3450 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L DIODESCH D6
+U 1 1 6049E984
+P 6300 800
+F 0 "D6" H 6300 900 40  0000 C CNN
+F 1 "DIODESCH" H 6300 700 40  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 6300 800 60  0001 C CNN
+F 3 "" H 6300 800 60  0000 C CNN
+	1    6300 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR017
+U 1 1 6049ED9D
+P 5900 1550
+F 0 "#PWR017" H 5900 1550 30  0001 C CNN
+F 1 "GND" H 5900 1480 30  0001 C CNN
+F 2 "" H 5900 1550 60  0001 C CNN
+F 3 "" H 5900 1550 60  0001 C CNN
+	1    5900 1550
+	1    0    0    -1  
+$EndComp
+Text GLabel 11100 4150 2    60   Input ~ 0
+3v3
+Text Notes 8200 5050 0    60   ~ 0
+1 = Coolant Thermistor\n2 = Alternator Voltage\n3 = Service Battery Voltage\n4 = Fuel Level Sensor\n5 = GND Fuel Sensor\n6 = Touch BT Enable\n
+Text Notes 4400 6100 0    60   ~ 0
+1 = +W terminal on Alternator\n2 = Unused
+$Comp
+L CONN_6 P2
+U 1 1 605B485A
+P 9900 4250
+F 0 "P2" V 9850 4250 60  0000 C CNN
+F 1 "CONN_6" V 9950 4250 60  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm" H 9900 4250 60  0001 C CNN
+F 3 "" H 9900 4250 60  0001 C CNN
+	1    9900 4250
+	0    -1   -1   0   
+$EndComp
+$Comp
+L GND #PWR018
+U 1 1 605B4A3A
+P 10050 4750
+F 0 "#PWR018" H 10050 4750 30  0001 C CNN
+F 1 "GND" H 10050 4680 30  0001 C CNN
+F 2 "" H 10050 4750 60  0001 C CNN
+F 3 "" H 10050 4750 60  0001 C CNN
+	1    10050 4750
+	1    0    0    -1  
+$EndComp
 Wire Wire Line
 	8750 2600 8750 3000
 Wire Wire Line
@@ -1004,20 +1102,6 @@ Wire Wire Line
 	2400 2450 2400 2000
 Connection ~ 2400 2000
 Wire Wire Line
-	10050 3550 10050 4100
-Wire Wire Line
-	10050 4100 10500 4100
-Wire Wire Line
-	10500 4000 10150 4000
-Wire Wire Line
-	10150 4000 10150 3550
-Wire Wire Line
-	10250 3550 10250 3800
-Wire Wire Line
-	10250 3800 10850 3800
-Wire Wire Line
-	10850 3800 10850 3850
-Wire Wire Line
 	10550 3650 10350 3650
 Wire Wire Line
 	10350 3650 10350 3550
@@ -1145,43 +1229,6 @@ Wire Wire Line
 	3850 6000 1300 6000
 Wire Wire Line
 	1300 6000 1300 6450
-$Comp
-L C C9
-U 1 1 603DE009
-P 4000 1100
-F 0 "C9" H 4000 1200 40  0000 L CNN
-F 1 "330nF" H 4006 1015 40  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4038 950 30  0001 C CNN
-F 3 "" H 4000 1100 60  0000 C CNN
-	1    4000 1100
-	1    0    0    -1  
-$EndComp
-$Comp
-L C C10
-U 1 1 603DE0BF
-P 5950 1100
-F 0 "C10" H 5950 1200 40  0000 L CNN
-F 1 "100nF" H 5956 1015 40  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 5988 950 30  0001 C CNN
-F 3 "" H 5950 1100 60  0000 C CNN
-	1    5950 1100
-	1    0    0    -1  
-$EndComp
-Text GLabel 3600 3350 0    60   Input ~ 0
-BTENABLE
-Text GLabel 10250 4650 2    60   Output ~ 0
-BTENABLE
-$Comp
-L DCDCConverter U4
-U 1 1 6049D818
-P 5050 1100
-F 0 "U4" H 5050 1100 60  0000 C CNN
-F 1 "DCDCConverter" H 5050 1100 60  0000 C CNN
-F 2 "Divers:DC-DC-Converter" H 5050 1100 60  0001 C CNN
-F 3 "" H 5050 1100 60  0001 C CNN
-	1    5050 1100
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	3650 800  4300 800 
 Wire Wire Line
@@ -1202,54 +1249,14 @@ Wire Wire Line
 Wire Wire Line
 	4200 1600 4200 1400
 Connection ~ 4200 1400
-$Comp
-L DIODESCH D1
-U 1 1 6049E8CA
-P 3450 800
-F 0 "D1" H 3450 900 40  0000 C CNN
-F 1 "DIODESCH" H 3450 700 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 3450 800 60  0001 C CNN
-F 3 "" H 3450 800 60  0000 C CNN
-	1    3450 800 
-	1    0    0    -1  
-$EndComp
-$Comp
-L DIODESCH D6
-U 1 1 6049E984
-P 6300 800
-F 0 "D6" H 6300 900 40  0000 C CNN
-F 1 "DIODESCH" H 6300 700 40  0000 C CNN
-F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" H 6300 800 60  0001 C CNN
-F 3 "" H 6300 800 60  0000 C CNN
-	1    6300 800 
-	1    0    0    -1  
-$EndComp
 Connection ~ 5950 800 
 Wire Wire Line
 	6500 800  6800 800 
 Wire Wire Line
 	3250 800  3150 800 
-$Comp
-L GND #PWR017
-U 1 1 6049ED9D
-P 5900 1550
-F 0 "#PWR017" H 5900 1550 30  0001 C CNN
-F 1 "GND" H 5900 1480 30  0001 C CNN
-F 2 "" H 5900 1550 60  0001 C CNN
-F 3 "" H 5900 1550 60  0001 C CNN
-	1    5900 1550
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	5900 1550 5900 1400
 Connection ~ 5900 1400
-Wire Wire Line
-	3600 3350 3700 3350
-NoConn ~ 3700 3550
-Text GLabel 11100 4150 2    60   Input ~ 0
-3v3
-Text Notes 8200 5050 0    60   ~ 0
-1 = Coolant Thermistor\n2 = Alternator Voltage\n3 = Service Battery Voltage\n4 = Fuel Level Sensor\n5 = GND Fuel Sensor\n6 = Touch BT Enable\n
 Wire Wire Line
 	11100 4150 10900 4150
 Wire Wire Line
@@ -1257,34 +1264,48 @@ Wire Wire Line
 Connection ~ 10900 4800
 Wire Wire Line
 	9850 4850 10400 4850
-Text Notes 4400 6100 0    60   ~ 0
-1 = +W terminal on Alternator\n2 = Unused
-$Comp
-L CONN_6 P2
-U 1 1 605B485A
-P 9900 4250
-F 0 "P2" V 9850 4250 60  0000 C CNN
-F 1 "CONN_6" V 9950 4250 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm" H 9900 4250 60  0001 C CNN
-F 3 "" H 9900 4250 60  0001 C CNN
-	1    9900 4250
-	0    -1   -1   0   
-$EndComp
-$Comp
-L GND #PWR018
-U 1 1 605B4A3A
-P 10050 4750
-F 0 "#PWR018" H 10050 4750 30  0001 C CNN
-F 1 "GND" H 10050 4680 30  0001 C CNN
-F 2 "" H 10050 4750 60  0001 C CNN
-F 3 "" H 10050 4750 60  0001 C CNN
-	1    10050 4750
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	10050 4600 10050 4750
 Wire Wire Line
 	10150 4600 10150 4650
 Wire Wire Line
 	10150 4650 10250 4650
+Wire Wire Line
+	3550 3550 3700 3550
+NoConn ~ 3700 3350
+Wire Wire Line
+	10050 3550 10050 3700
+Wire Wire Line
+	10050 3700 9950 3700
+Wire Wire Line
+	10150 3550 10150 3850
+Wire Wire Line
+	10150 3850 9950 3850
+Wire Wire Line
+	10250 3550 10250 3700
+Wire Wire Line
+	10250 3700 10850 3700
+Wire Wire Line
+	10850 3700 10850 3750
+$Comp
+L R R5
+U 1 1 606AC5F0
+P 10450 4250
+F 0 "R5" V 10530 4250 40  0000 C CNN
+F 1 "10K" V 10457 4251 40  0000 C CNN
+F 2 "Resistors_SMD:R_0805_HandSoldering" V 10380 4250 30  0001 C CNN
+F 3 "" H 10450 4250 30  0000 C CNN
+	1    10450 4250
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	10200 4650 10200 4500
+Wire Wire Line
+	10200 4500 10450 4500
+Connection ~ 10200 4650
+Wire Wire Line
+	10450 4000 11000 4000
+Wire Wire Line
+	11000 4000 11000 4150
+Connection ~ 11000 4150
 $EndSCHEMATC
