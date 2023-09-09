@@ -131,9 +131,6 @@ void setup() {
 
   Wire.begin(SDA_PIN, SCL_PIN);
   Serial.println("Starting sensors");
-  engineConfig.begin();
-  engineConfig.dump();
-  engineMonitor.begin();  
 
 
   hasBMP280 = true;
@@ -153,7 +150,12 @@ void setup() {
 
   }
 
+  Serial.println("Sensors Started");
+  Serial.println("Starting Engine interface");
 
+  engineConfig.begin();
+  engineConfig.dump();
+  engineMonitor.begin();  
 
   Serial.println("Starting NMEA2000");
 
@@ -261,7 +263,7 @@ void SendRapidEngineData() {
   static unsigned long RapidEngineUpdated=millis();
   tN2kMsg N2kMsg;
   unsigned long period = engineMonitor.getRapidEngineUpdatePeriod();
-  if ( period != 0 && RapidEngineUpdated+period<millis() ) {
+  if ( period != 0 && millis()-RapidEngineUpdated > period ) {
     if ( engineMonitor.isEngineOn() ) {  
       double rpm = engineMonitor.getFlyWheelRPM();
       if ( engineConfig.isMonitoringEnabled() ) {
@@ -281,7 +283,7 @@ void SendEngineData() {
   tN2kMsg N2kMsg;
 
   unsigned long period = engineMonitor.getEngineUpdatePeriod();
-  if ( period != 0 && EngineUpdated+period<millis() ) {
+  if ( period != 0 && millis()-EngineUpdated > period ) {
     if ( engineMonitor.isEngineOn() ) {  
 
       // PGN127489
@@ -323,7 +325,7 @@ void SendTemperatureData() {
   tN2kMsg N2kMsg;
 
   unsigned long period = engineMonitor.getTemperatureUpdatePeriod();
-  if ( period != 0 && TemperatureUpdated+period<millis() ) {
+  if ( period != 0 && millis()-TemperatureUpdated > period ) {
     // PGN130312
     if ( engineConfig.isMonitoringEnabled() ) {
       SerialIO.printf("Temperature er=%f, eg=%f, at=%f\n",
@@ -346,7 +348,7 @@ void SendVoltages() {
   tN2kMsg N2kMsg;
 
   unsigned long period = engineMonitor.getVoltageUpdatePeriod();
-  if ( period != 0 && VoltageUpdated+period<millis() ) {
+  if ( period != 0 && millis() - VoltageUpdated > period ) {
 
     // Battery Status PGN127508
     if ( engineConfig.isMonitoringEnabled() ) {
@@ -377,7 +379,7 @@ void SendEnvironment() {
     tN2kMsg N2kMsg;
 
     unsigned long period = engineMonitor.getEnvironmentUpdatePeriod();
-    if ( period != 0 && EnvironmentUpdated+period<millis() ) {
+    if ( period != 0 && millis() - EnvironmentUpdated > period ) {
 
         double temperature = bmp.readTemperature();
         double pressure =  bmp.readPressure();
@@ -471,7 +473,7 @@ void UpdateTime(unsigned long start) {
   if ( t < tmin ) tmin = t;
   tmean = (tmean*9/10)+t/10;
   tstd = (tstd*9/10)+((tmean-t)*(tmean-t))/10;
-  if ( lastOutput+10000<now ) {
+  if ( now-lastOutput > 10000 ) {
     lastOutput = now;
     // typically
     // Loop Stats tmax=20.000000, tmin=0.000000, tmean=2.006786, tstd=32.381637 

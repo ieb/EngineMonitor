@@ -545,13 +545,13 @@ void EngineMonitor::readSensors(bool debug) {
   // rpm
   debugOutput = debug;
   unsigned long readTime = millis();
-  if ( readTime > lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod ) {
+  if ( readTime-lastFlywheelRPMReadTime > config->flywheelRPMReadPeriod ) {
     debugf("Reading RPM  %ld  %lu \n",lastFlywheelRPMReadTime+config->flywheelRPMReadPeriod, readTime );
     readFlywheelRPM();
   }
 
   // coolant temperature
-  if ( readTime >  lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod ) {
+  if ( readTime-lastEngineTemperatureReadTime >  config->engineTemperatureReadPeriod ) {
     debugf("Reading Temperature  %ld  %lu\n",lastEngineTemperatureReadTime+config->engineTemperatureReadPeriod, readTime );
     debugf("Will Read Voltage  %ld  \n",lastVoltageReadTime+config->voltageReadPeriod-readTime );
     debugf("Will Reading External temps  %ld \n",lastTemperatureReadTime+config->temperatureReadPeriod-readTime );
